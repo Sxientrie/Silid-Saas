@@ -76,13 +76,16 @@ discipline is:
 | Table kind | Scope column | Example |
 |---|---|---|
 | Platform-owned | none (system tables) | organizations |
-| Organization-scoped | `org_id` | branches, staff memberships, rate configuration |
-| Branch-scoped | `org_id` + `branch_id` | rooms, sessions, session add-ons, canteen sales, shifts, audit entries |
+| Organization-scoped | `org_id` | branches, staff memberships |
+| Branch-scoped | `org_id` + `branch_id` | rooms, sessions, session add-ons, canteen sales, shifts, audit entries (rate configuration lives branch-scoped in `branches.rate_config`) |
 
-Transactional ledgers (sessions, add-ons, canteen sales, shifts, audit)
-are append-only for every role including the platform tier (Invariant 3).
-Void semantics, not updates, are the only correction path
-(`spec/domain-rules.md` §9).
+Transactional ledgers follow the two append-only disciplines of
+`spec/data-model.md` §2: `session_addons`, `canteen_sales`, and
+`audit_log` are INSERT-only for every role including the platform tier;
+`sessions` and `shifts` are written after insert only through their named
+server transitions (checkout, void, close, count). No role has a direct
+UPDATE or DELETE path on any ledger (Invariant 3); void semantics, not
+updates, are the only correction mechanism (`spec/domain-rules.md` §9).
 
 ## 5. Attack surfaces owned by this model
 
@@ -97,6 +100,7 @@ each relevant phase must exercise:
   ignores it; scope comes from claims.
 - A direct PostgREST call with a valid token but an out-of-scope id —
   RLS refuses.
-- A platform-tier actor writing to a transactional ledger — permitted by
-  design only where the model allows, and audited; the append-only
-  constraint holds for every role.
+- A platform-tier actor writing to a transactional ledger — this does not
+  occur in v1: the platform tier provisions organizations and accounts and
+  reads audit; it does not post to tenant ledgers. Its actions are audited
+  with null org/branch on the audit row.

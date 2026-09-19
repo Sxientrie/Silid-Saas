@@ -49,7 +49,8 @@ depends on any app existing.
    from the branch's rate_config, releases the room — one transaction
    (vault-11). Unit-testable at the SQL level via the local stack.
 6. **Author the void RPC** (admin-only, mandatory reason, session →
-   voided, audit row in the same transaction; actor from claims) and the
+   voided, active-session room release in the same transaction, audit row
+   in the same transaction; actor from claims) and the
    audit-entry writing path used by every state-changing RPC (vault-12,
    vault-17).
 7. **Author the scheduled escalation job**: a pg_cron-scheduled Postgres
@@ -74,6 +75,18 @@ depends on any app existing.
     pgTAP output showing each Non-Negotiable Invariant this phase can
     reach (tenant isolation, server-sealed time, append-only ledgers)
     attacked and refused.
+13. **Author the shift-close sealing RPC**: compute and freeze the
+    expected-cash buckets for the shift window per `spec/domain-rules.md`
+    §8 (room money by checkout instant, add-on money riding the checkout,
+    canteen by sale instant, voided excluded; half-open window with
+    per-branch serialization), accept the optional counted total, compute
+    variance, enforce the one-shot count; plus the record-count path and
+    the org force-close. pgTAP-tested.
+14. **Build the money-recomputation utility** in packages/testing: a
+    seeded deterministic environment, a reference mode recomputing the
+    `spec/domain-rules.md` §1.4 worked examples and ledger sums
+    independently of application code, and a defined CLI invocation —
+    the Money Recomputation Gate command phases 04–12 run.
 
 ## Copy-paste prompt for this phase
 
@@ -86,7 +99,8 @@ workspace root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md.
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of /Silid/roadmap/01-scaffolding.md.
 4. /Silid/roadmap/01-scaffolding.md (the immediately preceding phase), in
@@ -120,8 +134,8 @@ SUPABASE PROTOCOL (applies in full to this phase):
    iteration, migrations, advisors, policy tests, docs). Never hand-write
    what these tools produce. Iterate schema with execute_sql/db query;
    generate the committed migration when ready (advisors first, then
-   supabase db pull <name> --local --yes, then supabase migration list
-   --local to verify).
+   the CLI's diff/pull flow with flags discovered via --help at run time,
+   then supabase migration list to verify).
 3. The MCP server is configured harness-agnostically with the project ref
    from spec/deployment-operations.md; authenticate via the harness's
    OAuth flow; read the official Supabase agent skills where supported,
@@ -220,6 +234,11 @@ Remember (append findings, decisions, and the closing status to
 /Silid/PROGRESS.md — append-only; a task is not complete until its
 closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -271,6 +290,13 @@ DEFINITION OF DONE (technical, all checkable):
   spec/domain-rules.md §1.4 worked examples from the fixture through a
   path independent of any application code and matches exactly.
 - Drizzle schema typechecks against the migrated local database.
+- The shift-close sealing RPC proven by SQL tests: the vault-13 bucketing
+  (a cross-shift checkout boundary pays into the later window), half-open
+  window inclusion, voided exclusion, one-shot count, second close
+  refused.
+- The money-recomputation utility exists with its defined CLI invocation
+  and reproduces the §1.4 worked examples independently of application
+  code.
 - Every Deliverables item closed in PROGRESS.md with an EVIDENCE tag
   resolving in git; every generator command logged; run supabase db
   advisors and record the (clean or fixed) result.
@@ -290,6 +316,8 @@ system's own server logic; and the worked examples in the domain rules
 (₱450 short time, ₱2,000 five-guest overnight, ₱300 second extension
 hour) recompute exactly from the fixture file. No app exists yet — there
 is nothing to click; the recorded proof is the test output and the clip.
+
+Attack surface: cross-tenant reads at the database layer, timestamp forgery, ledger mutation by any role, the extension-charge cashier-insert path, double-booking, double shift-open, the checkout sealing arithmetic, and the escalation job idempotence — all attacked via pgTAP and SQL tests in this phase.
 
 ## Acceptance-report inputs
 

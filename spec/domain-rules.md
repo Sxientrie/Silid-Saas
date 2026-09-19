@@ -16,8 +16,8 @@ amount is a defect by definition.
 
 ## 1. The rate card (money reference values)
 
-The values in this section are the canonical reference for every guest
--billing test and fixture. The database phase (roadmap 02) captures them
+The values in this section are the canonical reference for every
+guest-billing test and fixture. The database phase (roadmap 02) captures them
 once more as a machine-readable money fixture — one file that every charge
 test imports — so no test ever re-types a peso figure and spec and tests
 cannot drift apart. The fixture also carries the add-on and canteen
@@ -46,8 +46,9 @@ Two stay types exist, each with a fixed duration set at check-in:
 Tier selection takes the highest tier not exceeding the guest count. The
 per-guest surcharge applies only beyond the 4-guest tier — guests three and
 four are priced by tier movement, not by the surcharge. A one-guest booking
-resolves to the lowest tier arithmetically; the check-in form enforces the
-business's legal minimum instead of relying on the clamp. (vault-03)
+resolves to the lowest tier arithmetically. The legal minimum guest count
+is 1 for both stay types; zero and negative counts are rejected at
+validation, never arithmetic-clamped. (vault-03)
 
 ### 1.3 Short-time surcharge
 
@@ -132,10 +133,15 @@ full elapsed hour still costs ₱150, one minute into the second hour costs
 The authoritative extension money is computed once, at checkout, inside
 the same transaction that closes the session: blocks due (by the section
 3.1 arithmetic at the checkout instant) minus blocks already posted equals
-the deficit, and the deficit posts as extension-charge line items. The desk
-never posts an extension charge by hand — the extension item is
-cashier-unpostable by policy, enforced in the database. A session within
-grace at checkout incurs nothing beyond base, surcharge, and add-ons.
+the deficit, and the deficit posts as extension-charge line items. In v1
+no path posts extension rows before checkout — desk posting is forbidden
+(below) and the scheduled escalation job is status-only — so the posted
+quantity is zero at checkout; the subtraction is retained as a defensive
+invariant and exercised by tests with synthetic posted rows, so the
+arithmetic can never double-charge a block. The desk never posts an
+extension charge by hand — the extension item is cashier-unpostable by
+policy, enforced in the database. A session within grace at checkout
+incurs nothing beyond base, surcharge, and add-ons.
 (vault-11, vault-09)
 
 ### 3.3 Per-branch overstay parameters
@@ -151,11 +157,20 @@ and identical on both sides of the wire:
   strictly positive. Zero (including 0.00) falls back to the default.
 - Grace may legitimately be zero; block length may not. An invalid value
   never errors — it silently falls back, and a bad configuration must
-  never become punitive (per-minute billing via a zero-length block) or
+  never become punitive (per-minute charging via a zero-length block) or
   free (zero-price blocks).
 - The rate editor blocks saving any value the server would ignore, so the
   configuration surface never lies about the branch's real charging
   behavior. (vault-07)
+
+### 3.4 Garbage inputs fall back, never lie
+
+A corrupted booked-end time (unparseable, or a non-finite clock value)
+renders as the booked-phase zeros on the desk — never NaN, never infinite
+accrual — while the server seals the real money from the ledger at
+checkout. Garbage per-branch parameters fall back per section 3.3's
+validation. The display can degrade to silence; it can never degrade to a
+wrong peso figure. (vault-05)
 
 ## 4. Room status machine
 
@@ -187,9 +202,38 @@ No client path updates room status. (vault-15)
   catalogue price. Negative unit prices are rejected by the database.
 - The catalogue (default prices) is part of the money reference fixture;
   the categories are: Drinks & Beers, Snacks, Cup Noodles, Cigars, Others.
-  The fixture carries all items and prices exactly as listed in
-  `spec/legacy-behavior-vault.md` (the legacy catalogue is reproduced
-  there as normalized data).
+  The full normalized catalogue below is the fixture's source of values
+  (sourced from the legacy constants and price list, reproduced as data
+  per the Legacy Porting Prohibition):
+
+  | Category | Item | Default price |
+  |---|---|---|
+  | Drinks & Beers | Bottled Water | ₱30 |
+  | Drinks & Beers | Bottled Soft Drinks | ₱40 |
+  | Drinks & Beers | Coffee | ₱30 |
+  | Drinks & Beers | Juice in Can | ₱70 |
+  | Drinks & Beers | Red Bull | ₱80 |
+  | Drinks & Beers | Gatorade 500ml | ₱80 |
+  | Drinks & Beers | Pale Pilsen Bottled | ₱80 |
+  | Drinks & Beers | San Mig Light Bottled | ₱80 |
+  | Drinks & Beers | Red Horse 500ml | ₱90 |
+  | Drinks & Beers | Red Horse 1L | ₱170 |
+  | Snacks | Big Curls | ₱60 |
+  | Snacks | Biscuits | ₱20 |
+  | Snacks | Fudge Bar | ₱20 |
+  | Cup Noodles | Spicy Bulalo / Bulalo | ₱75 |
+  | Cup Noodles | Jiampong | ₱75 |
+  | Cup Noodles | Sotanghon | ₱60 |
+  | Cigars | Marlboro (pack) | ₱250 |
+  | Others | Trust Condom | ₱70 |
+  | Others | Lighter | ₱20 |
+  | Others | Safeguard | ₱25 |
+  | Others | Shampoo / Conditioner | ₱25 |
+  | Others | Toothbrush | ₱30 |
+  | Others | Toothpaste | ₱20 |
+  | Others | Napkin | ₱20 |
+  | Others | Drivemax Coffee | ₱120 |
+  | Others | Drivemax Capsule | ₱170 |
 
 ## 6. Add-ons
 
@@ -246,12 +290,14 @@ ledger rows.
     the window;
   - **expected total** — the three sums combined.
 - **Attribution rule (normative).** Money belongs to the shift in which it
-  reached the desk — checkout instant for room money, sale instant for
-  canteen money, posting instant for add-ons — never to the shift or
+  reached the desk — checkout instant for room money and for a session's
+  add-on money (add-ons reach the desk as part of the session's sealed
+  checkout total), sale instant for canteen money — never to the shift or
   cashier that checked the guest in. Multi-cashier branches reconcile
   correctly under this rule: a guest checked in by cashier A but checked
-  out during B's shift pays into B's window. Voided sessions are excluded
-  everywhere. (vault-13, vault-14)
+  out during B's shift pays into B's window, and an add-on posted during
+  A's shift on a session checked out in B's shift is part of B's sealed
+  total. Voided sessions are excluded everywhere. (vault-13, vault-14)
 - The physical count is optional at close and one-shot forever: a closed
   shift without a count can receive exactly one count (from the admin or
   the shift's owner); a recorded count is never overwritten. Variance is
@@ -260,6 +306,20 @@ ledger rows.
 - Closing requires connectivity: the desk blocks the close while offline,
   because sealing totals while offline writes are pending would freeze
   wrong numbers. (vault-13)
+- **Window inclusion and serialization.** The shift window is half-open
+  [opened_at, closed_at): an event sealed exactly at closed_at belongs to
+  the next window. The close transaction and money-bearing desk
+  transactions serialize on a per-branch lock, so every event's sealed
+  instant falls entirely before the closing snapshot or strictly after
+  closed_at — no event lands in both windows or in neither. (vault-13)
+- **Open shift required for money.** A money-bearing desk action —
+  check-in, add-on posting, canteen sale — requires an open shift on its
+  branch; the procedures refuse otherwise. (vault-13)
+- **Close and count permissions.** Closing is permitted to any active
+  cashier of the branch and to the org tier; the count may be recorded by
+  the org tier or the shift's opener; an org force-close exists so a
+  branch whose desk is gone cannot hold an open shift indefinitely. The
+  record-count action writes an audit entry. (vault-13)
 - The live summary the desk sees while a shift runs is display-only and
   deliberately mirrors the close-time arithmetic — the close never
   surprises. (vault-14)
@@ -269,8 +329,20 @@ ledger rows.
 - Only the admin tier voids a session. The void requires a non-empty
   written reason, marks the session `voided`, and appends an audit entry
   capturing actor, action, target, before/after snapshots, and server
-  time — all in one transaction. Voided sessions are excluded from revenue
-  and shift expected-cash. (vault-12)
+  time — all in one transaction. Voiding an active session releases its
+  room to vacant in that same transaction (a voided session can never be
+  checked out, so the void is the only path that can free the room).
+  Voided sessions are excluded from revenue and shift expected-cash; the
+  corresponding physical cash is withdrawn from the drawer as part of the
+  void procedure (house rule), keeping drawer-versus-expected consistent.
+  Voiding a closed session changes no sealed figures — the frozen shift
+  stands and the audit trail records the correction. (vault-12)
+- **Line-item immutability (recorded decision).** Canteen sale rows and
+  add-on rows are immutable in v1 — no void path exists for them. A
+  mis-posted line is visible in the audit trail (every posting is
+  attributed) and is absorbed at shift reconciliation; a line-item void
+  path is a noted future phase (`spec/project-overview.md`). Sessions and
+  shifts are the only voidable rows.
 - The audit trail is append-only for every role including the platform
   tier: insert-only, no update, no delete, forever. (vault-17, Invariant 3)
 
@@ -302,7 +374,8 @@ ledger rows.
 ```
 
 - Escalation advances are driven only by the scheduled job; release happens
-  only in the checkout transaction (section 4).
+  only inside a server transaction that ends the session — checkout, or a
+  void of an active session (section 4, section 9).
 
 ### Shift
 

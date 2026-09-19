@@ -96,6 +96,13 @@ designed resolution, and the phase attack battery owns tests for each:
   discipline as online writes — a confirmed check-in invalidates rooms and
   sessions together, because the server's write spans both
   (vault-10's invalidation pairing, restated as a rule).
+- **Cross-desk freshness (v1 mechanism).** Desk surfaces stay current with
+  other cashiers' actions through claim-scoped polling at a 15-second
+  design interval on the transactional views (sessions, rooms, shift
+  summary) — simple, robust, and matched to the reality that multi-cashier
+  branches are small. Server-driven push (Supabase Realtime) is a noted
+  future optimization, not a v1 dependency; the polling interval is the
+  "design interval" the acceptance inputs reference.
 
 ## 6. Proof obligations specific to offline
 

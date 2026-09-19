@@ -139,10 +139,12 @@ branches, a fixed desk machine per branch, staff rotating at handover.
   session is an independent row; the desk's views refresh on short polling
   intervals precisely so that sessions other cashiers create or close
   appear promptly. The legacy has no server push — its "real-time"
-  dashboards are fifteen-second polling — so cross-cashier visibility lags
+  dashboards are fifteen-second polling — so cross-desk visibility lags
   by up to that interval. Silid keeps the multi-cashier correctness and
-  replaces polling with proper server-driven updates where the architecture
-  needs them.
+  adopts the same mechanism deliberately: claim-scoped polling at a
+  15-second design interval is the v1 cross-desk freshness mechanism
+  (`spec/offline-sync.md` §5), with server-driven push a noted future
+  optimization.
 - **Shift handover races** are guarded by the database: a branch can have
   at most one open shift, so two cashiers cannot both run shifts and split
   the revenue attribution (vault-16, scenario A). Closing while another
@@ -220,13 +222,14 @@ gap: nothing is claimed done without an adversarial test and a recorded
 clip. The rewrite builds the offline contract for real (`spec/offline-sync.md`)
 or does not claim it.
 
-### 3.5 Client-side room-status writes and polling as integration
+### 3.5 Client-side room-status writes and unowned integration
 
-Legacy included a direct client write path for room status (unused) and
-relied on fixed-interval polling for cross-desk visibility. Silid removes
-client room-status writes entirely — the room status machine is server-side
-only (vault-15) — and treats polling as a fallback, not the integration
-fabric.
+The legacy included a direct client write path for room status (unused) and
+relied on fixed-interval polling for cross-desk visibility without stating
+that as a design decision anywhere. Silid removes client room-status
+writes entirely — the room status machine is server-side only (vault-15) —
+and records the polling mechanism and its interval as an explicit design
+decision (`spec/offline-sync.md` §5) instead of an accident.
 
 ### 3.6 Supabase usage anti-patterns in legacy
 
@@ -368,10 +371,9 @@ legacy behavior informs it.
 
 ---
 
-## 6. Discrepancies between the legacy documents, the legacy disk state, and this pass
+## 6. Discrepancies between the legacy documents, the legacy disk state, and the spec set
 
-Recorded per the verify-before-you-trust rule, so the review pass and every
-downstream session sees them:
+Recorded so every downstream session sees them:
 
 1. The legacy architecture document describes a migrations directory
    (numbered 0001–0009, plus later remediation, shift, overstay, and rate

@@ -19,9 +19,9 @@ part (vault-13).
 ## Deliverables
 
 1. **Expose shift procedures** in packages/api: open (claims-derived
-   actor/branch), close (invoke the sealing RPC; optional counted total),
-   record-count (one-shot), reads (open shift, live summary, history
-   with names).
+   actor/branch), close (invoke the sealing RPC; optional counted total;
+   org force-close permitted), record-count (one-shot), reads (open
+   shift, live summary, history with names).
 2. **Build features/shift** per `spec/applications.md` §3: open-shift
    state, live display-only summary mirroring the close buckets
    (vault-14), end-shift dialog with optional physical count
@@ -35,8 +35,10 @@ part (vault-13).
    binding the real actions).
 5. **Attribution proofs (tests + E2E with clips)**:
    - Room revenue buckets by checkout instant, canteen by sale instant,
-     add-ons by posting instant; voided sessions excluded everywhere
-     (vault-13).
+     add-on money riding the session's checkout instant; voided sessions
+     excluded everywhere (vault-13).
+   - A money-bearing desk action with no open shift on its branch is
+     refused (vault-13).
    - The boundary case: a guest checked in by cashier A during shift 1
      and checked out during shift 2 pays into shift 2's expected cash.
    - One open shift per branch enforced end-to-end (two desks race to
@@ -64,7 +66,8 @@ documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md. spec/domain-rules.md §8 (shifts) and vault-13/
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass. spec/domain-rules.md §8 (shifts) and vault-13/
    vault-14/vault-16 are your behavioral law.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–07).
@@ -80,7 +83,7 @@ PROJECT IDENTITY AND RULES THAT BIND THIS PHASE:
 Silid is a multi-tenant SaaS rewrite of a legacy motel front-desk tool.
 This phase builds the shift feature per spec/domain-rules.md §8: one
 open shift per branch (database-enforced); close seals expected cash
-server-side (room by checkout instant, add-ons by posting instant,
+server-side (room by checkout instant, add-on money riding the checkout,
 canteen by sale instant, voided excluded; money-reaches-the-desk
 attribution); count is optional and one-shot; variance is counted minus
 expected; close is online-only; the live summary is display-only and
@@ -177,6 +180,11 @@ output as proof) → Improve (fix what verification revealed) → Remember
 /Silid/PROGRESS.md — append-only; a task is not complete until its
 closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -243,6 +251,8 @@ missed count can be recorded exactly once. A clip shows the shift
 actions locked while offline. The acceptance report links the clips,
 the recomputation report (zero drift), and the attack tests.
 
+Attack surface: the shift-boundary attribution seam, post-close figure movement, double counts, second-shift opens, offline closes, live-summary divergence — attacked via tests, E2E, and the recomputation gate in this phase.
+
 ## Acceptance-report inputs
 
 - "A branch can have only one open shift at a time; the second open is
@@ -255,8 +265,9 @@ the recomputation report (zero drift), and the attack tests.
 - "Nothing that happens after a shift closes changes its sealed
   figures."
 - "The physical count is optional at close, shown as a variance (short,
-  over, exact), and a recorded count can never be changed; a missed
-  count can be recorded exactly once afterwards."
+  over, exact)."
+- "A recorded count can never be changed; a missed count can be recorded
+  exactly once afterwards."
 - "Starting or ending a shift is blocked while offline, with a visible
   reason."
 - "The running shift summary on the desk matches the sealed close

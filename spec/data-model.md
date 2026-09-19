@@ -45,7 +45,12 @@ money reference fixture.
 ### staff
 
 The staff profile (distinct from the auth identity, which lives in Supabase
-Auth):
+Auth). Staff rows exist only for tenant roles (`cashier`, `org_admin`): a
+`platform_admin` identity lives in Supabase Auth with no tenant staff row,
+and its claims carry null `org_id`/`branch_id` (`spec/authentication.md`
+§2). The staff table's role column therefore holds `cashier` /
+`org_admin` in practice; `platform_admin` is listed for completeness of
+the role vocabulary.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -53,7 +58,7 @@ Auth):
 | org_id | uuid | FK, indexed — tenancy |
 | branch_id | uuid | nullable FK, indexed — set for cashiers, null for org admins |
 | email | text | login credential, managed by Supabase Auth |
-| role | text | cashier / org_admin / platform_admin — verbatim identifiers |
+| role | text | cashier / org_admin (platform_admin identities carry no staff row) |
 | display_name | text | desk-facing name |
 | is_active | boolean | deactivation flag; deactivation revokes sessions first (`spec/authentication.md` §5) |
 | created_at | timestamptz | server-sealed |
@@ -79,13 +84,30 @@ transaction are the only writers; no client path updates status.
 
 ## 2. Transactional ledgers (append-only)
 
-All ledgers below are INSERT-only for every role including the platform
-tier (Invariant 3). No UPDATE or DELETE policy exists on them; the void
-path is the only correction mechanism (`spec/domain-rules.md` §9). Every
-row carries permanent attribution: the acting cashier, the branch, and a
-server-sealed instant (Invariant 2d). Client-supplied timestamps are never
-accepted; server triggers or RPCs seal time (Invariant 2a). Every peso
-column is computed server-side from configuration (Invariant 2c).
+The ledgers below split into two disciplines, both enforcing Invariant 3:
+
+- **Truly immutable rows — INSERT-only for every role including the
+  platform tier.** `session_addons`, `canteen_sales`, and `audit_log` have
+  no UPDATE or DELETE path of any kind; a posted row is permanent. The
+  void path (§9 of domain rules) applies to sessions only — line items are
+  immutable by recorded decision (a noted future phase adds line-item
+  voids).
+- **State-bearing rows — `sessions` and `shifts`.** These carry a status
+  lifecycle, so they are written after insert solely by their named server
+  transitions: the checkout transaction and the void path for sessions;
+  the close and record-count paths for shifts. Those transitions run as
+  database functions inside one transaction each, perform only their
+  column-scoped change (status, sealed money, sealed instants, void
+  reason), and write the accompanying audit entry. Row-Level Security
+  grants direct UPDATE and DELETE to no role on any ledger — a client can
+  reach the transitions only through the sanctioned procedures, and no
+  path exists that reopens a closed session, unseals sealed money, or
+  overwrites a recorded count.
+
+Every row carries permanent attribution: the acting cashier, the branch,
+and a server-sealed instant (Invariant 2d). Client-supplied timestamps are
+never accepted; server triggers or RPCs seal time (Invariant 2a). Every
+peso column is computed server-side from configuration (Invariant 2c).
 
 ### sessions
 
@@ -181,9 +203,8 @@ Integrity enforcement:
 | Column | Type | Notes |
 |---|---|---|
 | id | uuid | primary key |
-| org_id | uuid | FK, indexed — tenancy |
-| branch_id | uuid | nullable FK, indexed — tenancy (null for platform-tier entries) |
-| actor_id | uuid | FK to staff (or platform actor id) — server-derived, never client-supplied |
+| org_id | uuid | nullable FK, indexed — tenancy; null only for platform-tier actions |
+| actor_id | uuid | the Supabase Auth user id of the acting identity (a staff id for tenant roles; a platform identity for operator actions) — server-derived, never client-supplied |
 | action | text | e.g. void_session, update_rate_config, check_in, check_out |
 | target_table | text | affected table |
 | target_id | uuid | affected row |
@@ -200,6 +221,9 @@ transaction as the change they record (vault-12, vault-17).
 - **No payments table.** Money is implicitly cash-at-desk collected before
   check-in; method capture is a legacy-suggestion future candidate
   (`spec/project-overview.md`).
+- **No line-item void path.** Canteen and add-on rows are immutable;
+  session/shift voids exist, line-item voids are a future phase
+  (`spec/domain-rules.md` §9, `spec/project-overview.md`).
 - **No guest personal data** (Invariant 4). Sessions carry a guest count,
   never names, contacts, or visit history.
 - **No inventory/stock ledger** for the canteen (future candidate).
@@ -224,13 +248,21 @@ transaction as the change they record (vault-12, vault-17).
 - Money columns on ledgers (`base_rate`, `surcharges`, `total`,
   `unit_price`, expected columns) are NOT NULL with server-applied values;
   a nullable peso figure is a proof gap under the Money Recomputation
-  Gate. The only nullable money is `counted_total`/`variance` on shifts —
-  null has business meaning ("no count recorded") and the display layer
-  distinguishes it (`spec/domain-rules.md` §8).
+  Gate. On `sessions` the money columns carry server-applied zeros at
+  insert and are sealed by the checkout transaction — the pre-seal zeros
+  are defaults, not figures, and the Money Recomputation Gate computes
+  over sealed rows only. The only nullable money is
+  `counted_total`/`variance` on shifts — null has business meaning ("no
+  count recorded") and the display layer distinguishes it
+  (`spec/domain-rules.md` §8).
 - Attribution columns (`cashier_id`, `opened_by`, `closed_by`, `actor_id`,
   `branch_id`, `org_id`) are NOT NULL wherever a row is transactional;
   `branch_id` on audit rows is nullable only for platform-tier actions,
-  which the audit row makes visible by absence.
+  which the audit row makes visible by absence. The checkout act and the
+  shift count are attributed through the audit trail (the transitions
+  write audit entries); `sessions` carries no separate `checked_out_by`
+  column and `shifts` no `counted_by` column — a recorded design decision,
+  not an omission.
 
 ## 6. The money reference fixture
 

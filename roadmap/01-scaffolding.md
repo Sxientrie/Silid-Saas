@@ -268,6 +268,8 @@ folders, and a `reports/proof` folder containing at least one playable
 video clip. If you can run nothing yourself, the acceptance report's
 green lines plus the clips are the review path.
 
+Attack surface: the pipeline itself — a non-compliant fixture for the rule linter, a malformed report-generator input, and a legacy file that must never appear in any gate output. Every surface is attacked within this phase (Definition of done); beyond the pipeline, ATTACKABLE SURFACE: none (no business behavior exists yet).
+
 ## Acceptance-report inputs
 
 - "A clean checkout installs, builds, lints, and tests with one command

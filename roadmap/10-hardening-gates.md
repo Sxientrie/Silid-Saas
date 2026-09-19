@@ -54,7 +54,8 @@ in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md.
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–09)
    and the "Acceptance-report inputs" sections of Phases 02–09 (they are
@@ -163,6 +164,11 @@ decisions, and the closing status to /Silid/PROGRESS.md — append-only;
 a task is not complete until its closing status is logged, including
 after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -220,6 +226,8 @@ voided peso resurfacing, money sliding between shifts, an offline
 backdoor). Watch the clips; read the gate reports — mutation ("X
 mutants injected, Y caught") and recomputation ("N figures, zero
 drift"). This phase has no new screens; its product is confidence.
+
+Attack surface: every acceptance input from Phases 02-09 plus the cross-surface attacks (voided pesos resurfacing, shift-boundary misattribution, offline tenant-isolation bypass) — this phase is the consolidated attack pass.
 
 ## Acceptance-report inputs
 

@@ -34,7 +34,7 @@ the two-cashiers-same-instant attack scenario the invariants demand.
    timestamps (pure display math per vault-05/06), overdue rooms
    floating to the top with the accruing display figure; per-branch
    parameters from the rate service (vault-07); garbage-timestamp
-   fallback per `spec/domain-rules.md` §4.3.
+   fallback per `spec/domain-rules.md` §3.4.
 5. **Concurrency proofs (attack-ready)**: the two-cashiers-one-room
    same-instant test (one clean rejection); concurrent checkout vs
    another cashier's check-in on the same room; offline replay of a
@@ -43,8 +43,9 @@ the two-cashiers-same-instant attack scenario the invariants demand.
 6. **End-to-end money proofs**: Playwright E2E with clips — check-in a
    2-pax short-time session (₱450), check out in grace (₱450);
    check-in a 5-pax overnight (₱2,000 expected at checkout); force an
-   overstay clock and check out 61 minutes past grace (₱2,300 total for
-   a 6-pax-equivalent or the scripted equivalent) — every figure from
+   overstay clock and check a 5-pax overnight out 61 minutes
+   past grace — sealed total ₱2,300 (₱2,000 base plus surcharge, plus two
+   ₱150 extension blocks) — every figure from
    the sealed server path, recomputed by the Money Recomputation Gate.
 7. **Run the Money Recomputation Gate**: sealed checkout totals
    recomputed independently from the fixture and posted ledger rows
@@ -65,7 +66,8 @@ documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md. spec/domain-rules.md and
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass. spec/domain-rules.md and
    spec/legacy-behavior-vault.md are your behavioral law.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–05).
@@ -181,6 +183,11 @@ decisions, and the closing status to /Silid/PROGRESS.md — append-only; a
 task is not complete until its closing status is logged, including
 after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -245,6 +252,8 @@ amount on the dashboard and checks out with the extra ₱150-per-started
 same room at the same instant with exactly one success. The acceptance
 report links each clip, the recomputation report (zero peso drift), and
 the passing attack tests.
+
+Attack surface: the two-cashiers-one-room race, client-supplied money, tampered checkout displays, garbage timestamps, offline replay into occupied rooms — attacked via concurrency tests, E2E, and the recomputation gate in this phase.
 
 ## Acceptance-report inputs
 

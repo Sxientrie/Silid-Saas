@@ -50,9 +50,9 @@ database work from Phase 02.
    outputs to /Silid/reports/proof/.
 9. **Run the Money Recomputation Gate** for this phase: the rate
    -configuration service's accepted values and the catalogue module
-   recomputed independently against the fixture (exact command defined
-   here: the packages/testing recompute utility run against the fixture
-   and the service's outputs; zero drift required).
+   recomputed independently against the fixture (the recompute utility
+   built in Phase 02, run against the fixture and the service's outputs;
+   zero drift required).
 
 ## Copy-paste prompt for this phase
 
@@ -66,7 +66,8 @@ in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md.
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file
    (01–03).
@@ -183,6 +184,11 @@ decisions, and the closing status to /Silid/PROGRESS.md — append-only; a
 task is not complete until its closing status is logged, including after
 any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -246,6 +252,8 @@ settings; every change is written to the audit trail with the true actor
 and time; and the price lists the system serves come from one fixture
 file that matches the domain rules exactly. There is no screen to click
 yet — the recorded proofs are the test outputs and gate reports.
+
+Attack surface: client-supplied tenant identifiers, merge clobbering, audit-actor forgery, configuration values the server would ignore, fixture-drift in served prices — attacked via contract tests and gates in this phase.
 
 ## Acceptance-report inputs
 

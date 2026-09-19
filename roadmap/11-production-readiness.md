@@ -26,8 +26,9 @@ where it belongs (Phase 12's runbook and the DECISIONS channel).
    Note: pushing schema to the empty production project is preparation,
    not go-live — no real tenant data is created and no user is announced.
 2. **Deploy the three applications** through the Vercel pipeline
-   (preview per PR already wired; production project linking, env vars
-   from the recorded refs/keys, publishable keys only in client bundles).
+   (preview wiring landed in Phase 01; this phase does the production
+   project linking, env vars from the recorded refs/keys, publishable
+   keys only in client bundles).
 3. **Verify Sentry live** in production: a deliberate test exception
    appears in the dashboard, then is resolved.
 4. **Enter the operator's master data** through the real surfaces: the
@@ -37,7 +38,8 @@ where it belongs (Phase 12's runbook and the DECISIONS channel).
    (`spec/project-overview.md`; no legacy data import).
 5. **Performance/consistency pass**: desk polling intervals and cache
    invalidation audited against the multi-cashier requirement (a
-   session another cashier creates or closes appears promptly); the
+   session another cashier creates or closes appears within the
+   15-second design interval per `spec/offline-sync.md` §5); the
    ladder refresh cadence; large-ledger query paths indexed and
    measured (EXPLAIN output pasted for the hot paths).
 6. **Production smoke battery**: E2E against the production deployment
@@ -62,7 +64,8 @@ workspace root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md.
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–10).
 4. /Silid/roadmap/10-hardening-gates.md (the immediately preceding
@@ -168,6 +171,11 @@ revealed) → Remember (append findings, decisions, and the closing
 status to /Silid/PROGRESS.md — append-only; a task is not complete
 until its closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -231,6 +239,8 @@ logs, the production policy-test run, and the backup rehearsal evidence.
 Nothing about daily operations has switched yet — that is the next
 phase's deliberate, client-confirmed step.
 
+Attack surface: production RLS under real claims, secret-key exposure in client bundles, the scheduled job on live data, master-data fidelity against the money fixture — attacked via the production smoke battery and policy suite in this phase.
+
 ## Acceptance-report inputs
 
 - "The database schema and security policies are live on the production
@@ -238,9 +248,10 @@ phase's deliberate, client-confirmed step.
   on a production-fresh database."
 - "All three applications are reachable at their production addresses."
 - "The error-tracking system captures and displays a production error."
-- "The company, its five branches, rooms, default rates, and staff
-  exist in production — entered through the system's own admin
-  screens, with rates matching the domain rules exactly."
+- "The company, its five branches, and rooms exist in production —
+  entered through the system's own admin screens."
+- "Default rates and staff accounts exist in production, with rates
+  matching the domain rules exactly."
 - "The scheduled status-escalation job is verified running on
   production."
 - "The desk stays current with other cashiers' actions within the

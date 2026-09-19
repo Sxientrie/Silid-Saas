@@ -63,7 +63,8 @@ the workspace root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md. spec/legacy-behavior-vault.md is the parity
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass. spec/legacy-behavior-vault.md is the parity
    benchmark.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–11).
@@ -167,6 +168,11 @@ decisions, and the closing status to /Silid/PROGRESS.md — append-only;
 a task is not complete until its closing status is logged, including
 after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -227,6 +233,8 @@ Then read the final acceptance report: every capability the build
 claimed, one line each, green, with a playing clip and the attack test
 that tried to break it. The one decision left to you is the go-live
 itself, waiting in DECISIONS-NEEDED.md.
+
+Attack surface: the parity replay itself — any vault golden the production system fails to reproduce is a break surfaced here, with divergences dispositioned explicitly.
 
 ## Acceptance-report inputs
 

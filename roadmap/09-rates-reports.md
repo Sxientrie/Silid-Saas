@@ -44,6 +44,11 @@ would ignore (vault-07's mirror-by-construction discipline).
    produce (report-grid sums recomputed independently); zero drift.
 7. **Run the mutation and coverage gates** on the touched slices;
    reports to /Silid/reports/proof/.
+8. **Build features/staff** (org-admin): provision cashier and
+   org-admin accounts for the organization through the Phase 03
+   provisioning path, list staff with branch and role, and deactivate
+   (revoking sessions first) — the org-tier staff-management surface
+   required by `spec/applications.md` §3.
 
 ## Copy-paste prompt for this phase
 
@@ -56,7 +61,8 @@ workspace root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md. spec/domain-rules.md §1.5/§3.3/§7 and vault-07/
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass. spec/domain-rules.md §1.5/§3.3/§7 and vault-07/
    vault-20 are your behavioral law for the editor.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file (01–08).
@@ -167,6 +173,11 @@ output as proof) → Improve (fix what verification revealed) → Remember
 /Silid/PROGRESS.md — append-only; a task is not complete until its
 closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -206,6 +217,9 @@ DEFINITION OF DONE (technical, all checkable):
   and the API refuses (test + clip).
 - Report-grid sums recompute independently from the ledger with zero
   drift (Money Recomputation Gate report in /Silid/reports/proof/).
+- features/staff delivers the org-tier surface: an org-admin provisions
+  a cashier through the UI and that cashier signs in to their branch
+  (E2E with clip); deactivation revokes their access (test).
 - Mutation gate ≥80% and coverage gate ≥80% on the touched slices
   (reports in /Silid/reports/proof/).
 - Every Deliverables item closed in PROGRESS.md with an EVIDENCE tag
@@ -226,6 +240,8 @@ block) instead of saving them; the audit screen shows a void with who
 did it and why. A clip shows a cashier being kept out of these
 surfaces. The acceptance report links the clips and the gate reports.
 
+Attack surface: cross-branch leakage through rate/report surfaces, cashier-role reach, editor values the server would ignore, report-sum drift — attacked via E2E, guards, and the recomputation gate in this phase.
+
 ## Acceptance-report inputs
 
 - "An administrator can edit each branch's full rate card — stay types,
@@ -239,5 +255,8 @@ surfaces. The acceptance report links the clips and the gate reports.
   and time, and nothing can alter entries."
 - "A cashier cannot reach rate-configuration or report surfaces — the
   UI keeps them out and the server refuses them."
+- "An organization administrator provisions cashier and org-admin
+  accounts, and can deactivate them, through the Frontdesk staff
+  surface."
 - "Report sums recompute independently from the ledger with zero
   drift."

@@ -169,7 +169,9 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "boundaries": [
     "grace begins exactly at booked_end, with the full window remaining",
     "the exact close of the grace window is overdue with zero accrued blocks and zero pesos — the first peso appears one minute past",
-    "a partial grace minute rounds up in the countdown (24m30s left shows 25 minutes remaining at offset 0; 30 seconds into the window shows 25)"
+    "a partial grace minute rounds up in the countdown: 30 seconds into the window the display still shows 25 minutes left; at 24m30s of window remaining the display shows 25",
+    "an unparseable booked_end or a non-finite now falls back to the booked-phase zeros (no NaN or infinite money ever displays); garbage override parameters fall back to the defaults the same way",
+    "with a zero-grace configuration, the phase boundary moves to booked_end: overdue with zero accrued blocks at the booked end itself, first block one minute past"
   ],
   "reasoning": "Values are the legacy test suite's own assertions with fixed clock instants; the ladder is display math only, evaluated every ten seconds on the desk."
 }
@@ -211,7 +213,7 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "expected_rules": {
     "defaults": { "grace_minutes": 25, "block_minutes": 60, "charge_php": 150 },
     "grace_minutes": "whole minutes, digit-only text up to 9 digits; zero is legal; fractional, signed, padded, exponent, or overflowing values fall back to 25",
-    "block_minutes": "whole minutes, digit-only text up to 9 digits; zero and negatives are illegal and fall back to 60 (never per-minute billing)",
+    "block_minutes": "whole minutes, digit-only text up to 9 digits; zero and negatives are illegal and fall back to 60 (never per-minute charging)",
     "charge_php": "digits with optional decimals, up to 12 characters, strictly positive; zero (including 0.00) is illegal and falls back to 150; trailing-dot text falls back; 150.50 is accepted as 150.5",
     "fallback_is_silent": "an invalid override never errors; the system default applies and the rate editor blocks saving values the server would ignore"
   },
@@ -231,7 +233,7 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "id": "vault-08",
   "title": "Canteen sales are standalone line items with per-branch price overrides",
   "provenance": "DERIVED",
-  "derived_from": "legacy canteen service and feature (cart of item+quantity, one posted row per cart line, client-supplied unit price from the branch's override or the catalogue default), generated database types (no session reference on canteen sales), legacy audit notes (standalone-sales fact), overview price list",
+  "derived_from": "legacy canteen service and feature (cart of item+quantity, one posted row per cart line, unit price from the branch's override or the catalogue default), generated database types (no session reference on canteen sales in legacy), legacy audit notes (standalone-sales fact), and the canteen catalogue normalized into spec/domain-rules.md §5 (all items and prices, sourced from the legacy constants and the overview price list)",
   "input": { "item": "bottled_water", "qty": 3, "unit_price_php": 30 },
   "expected_output": {
     "row": { "item": "bottled_water", "qty": 3, "unit_price_php": 30, "total_php": 90 },
@@ -283,7 +285,7 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "derived_from": "legacy sessions service and check-in hook, generated database types, architecture document (trigger-sealed timestamps, room flip, realtime broadcast)",
   "input": { "room_id": "<vacant room in cashier's branch>", "booking_type": "SHORT_TIME | OVERNIGHT", "pax": "<integer>" },
   "expected_output": {
-    "session_row": "active, with base/surcharge/total columns at their defaults until checkout seals them (legacy-era behavior; see vault-11)",
+    "session_row": "active, with money columns at their server-applied insert defaults and not yet sealed; the legacy's defect era never sealed them at all, while the sealed-at-checkout contract (vault-11) is the behavior the rewrite implements",
     "checked_in_at": "server-sealed",
     "booked_end_at": "server-derived per vault-04",
     "room_status": "occupied"
@@ -314,7 +316,7 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "state_transitions": ["session: active → closed", "room: occupied|grace|overdue → vacant"],
   "boundaries": [
     "checkout within grace adds nothing beyond base + surcharge + add-ons",
-    "checkout after grace bills every started block per vault-06, minus whatever the desk already posted, so the guest is never charged twice for the same block",
+    "checkout after grace bills every started block per vault-06, minus any blocks already posted, so the same block is never charged twice; in the new system no desk or scheduled path posts extension rows before checkout (desk posting is forbidden, the escalation job is status-only), so the posted-quantity term is zero at checkout — it is retained as a defensive invariant and exercised by tests with synthetic posted rows",
     "a session closed by this path can never be reopened; corrections go through the void path (vault-12)"
   ],
   "reasoning": "The legacy code comments state repeatedly that the authoritative money is sealed server-side at checkout, that extension blocks are deficit-counted under a fixed item id, and that the room release and summary invalidation follow. The legacy-era defect where close did not compute the total predates the final migration set and was superseded; the rewrite spec adopts the sealed-at-checkout contract as normative (spec/domain-rules.md, guest-billing arithmetic)."
@@ -332,14 +334,16 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "input": { "session_id": "<closed or active session>", "reason": "<non-empty text>" },
   "expected_output": {
     "session": "status → voided",
+    "room": "if the voided session was active, its room is released to vacant in the same transaction — a voided session can never be checked out, so the release must happen here or the room would strand",
     "audit_row": "appended, capturing actor, action, target, before/after snapshots, server time",
-    "money_effect": "voided sessions are excluded from shift expected-cash and from revenue summaries"
+    "money_effect": "voided sessions are excluded from shift expected-cash and from revenue summaries; the corresponding physical cash is withdrawn from the drawer as part of the void procedure (house rule), keeping drawer-versus-expected consistent"
   },
-  "state_transitions": ["session: active|closed → voided"],
+  "state_transitions": ["session: active|closed → voided", "room: occupied|grace|overdue → vacant (when the voided session was active)"],
   "boundaries": [
     "a void without a reason is rejected",
     "cashiers cannot void; the actor identity comes from the server session, never the request body",
-    "the voided session row is never edited or deleted — void is a status change plus an audit insert",
+    "the voided session row is never edited or deleted — void is a status change through the sanctioned transition path plus an audit insert",
+    "voiding a closed session changes no sealed figures; the frozen shift expected-cash stands (the audit trail records the correction)",
     "the audit trail itself accepts inserts only; no role can update or delete it"
   ],
   "reasoning": "The legacy audit service documents the RPC's contract verbatim in prose comments; the overview document states the house rule. The legacy's intermediate era (void impossible after an RLS remediation) is history, not target behavior."
@@ -374,7 +378,10 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
   "state_transitions": ["shift: (none) → open → closed", "closed shift: count null → count set (once)"],
   "boundaries": [
     "closing requires connectivity: the desk blocks the action while offline, because sealing wrong totals offline defeats reconciliation",
-    "an empty count closes the shift and leaves the variance unknown until an admin or the shift's owner records it",
+    "the shift window is half-open [opened_at, closed_at): an event sealed exactly at closed_at belongs to the next window; the close transaction and money-bearing desk transactions serialize on a per-branch lock, so every event's sealed instant falls entirely before the closing snapshot or strictly after closed_at — no event lands in both windows or in neither",
+    "closing is permitted to any active cashier of the branch and to the org tier; the count may be recorded by the org tier or the shift's opener; an org force-close exists so a branch whose desk is gone cannot hold an open shift indefinitely (the one-open-shift constraint would otherwise block the branch forever)",
+    "a money-bearing desk action (check-in, add-on, canteen sale) requires an open shift on its branch — the legacy desk copy already instructed this; the new system enforces it at the procedure layer",
+    "an empty count closes the shift and leaves the variance unknown until an admin or the shift's owner records it; the record-count action is itself written to the audit trail",
     "negative variance displays as short, positive as over, zero as exact, missing as no count recorded",
     "the close moment is server-sealed; expected figures are frozen at close, never recomputed"
   ],
@@ -498,7 +505,7 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
     "legacy caveat recorded for honesty: the queue infrastructure is fully built and tested, but no legacy write path ever enqueues to it — the legacy is effectively online-only. The rewrite decides the real offline contract in spec/offline-sync.md; where it differs from this fixture, the vault scenario is retired with a CHANGELOG entry, not silently diverged",
     "shift close is online-only regardless (vault-13)"
   ],
-  "reasoning": "The sync worker's behavior is asserted by a committed legacy test; the dead-wiring caveat is the legacy audit notes' own finding. Both are recorded so the rewrite neither porting the deadness nor silently claiming parity."
+  "reasoning": "The sync worker's behavior is asserted by a committed legacy test; the dead-wiring caveat is the legacy audit notes' own finding. Both are recorded so the rewrite neither ports the deadness nor silently claims parity."
 }
 ```
 
@@ -565,8 +572,8 @@ the legacy client and server logic (see vault-01–03 and the gap analysis).
 | vault-09 | Room extras (towel ₱20, bed sheet ₱20, blanket ₱20, pillow ₱50, big foam ₱300, small foam ₱200) are charged to the guest's open session and appear in the final total. The ₱150 extension line can never be posted by hand — only checkout writes it. |
 | vault-10 | Check-in records room, stay type, and guest count; the system seals the times, marks the room occupied, and the cashier confirms full payment first — no partial payment, no refunds. |
 | vault-11 | Check-out is one server transaction: it stamps the time, adds every started extension hour owed (minus any already posted), computes the final total from base + surcharges + extras, and frees the room. |
-| vault-12 | Only the admin can void a transaction, must write a reason, and the void is permanent and visible in the audit trail. Voided sessions don't count toward revenue. |
-| vault-13 | A branch has one open shift at a time. Ending the shift locks in the expected cash (room + extras + canteen, attributed to when the money reached the desk). The cashier may enter the physically counted amount; expected minus counted is the variance, and a recorded count can never be changed. Ending a shift needs a connection. |
+| vault-12 | Only the admin can void a transaction, must write a reason, and the void is permanent and visible in the audit trail. Voided sessions don't count toward revenue; voiding an open stay frees its room, and the guest's cash leaves the drawer as part of the void procedure. |
+| vault-13 | A branch has one open shift at a time, and the desk must have an open shift before taking check-ins or canteen sales. Ending the shift locks in the expected cash (room + extras + canteen, attributed to when the money reached the desk); every event lands in exactly one shift's window. The cashier may enter the physically counted amount; expected minus counted is the variance, and a recorded count can never be changed. Ending a shift needs a connection. |
 | vault-14 | While the shift runs, the desk sees running totals computed exactly the way the close will compute them — the close never surprises. |
 | vault-15 | Rooms change status only by the system: occupied at check-in, grace/overdue as overstays age, vacant again at checkout. |
 | vault-16 | Legacy already blocks a second open shift on the same branch, but it does NOT stop two cashiers from booking the same room — Silid must. |

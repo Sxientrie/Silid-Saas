@@ -18,7 +18,7 @@ restatement.
 | 06 | `06-sessions-rooms.md` | Check-in and check-out with sealed totals, the room status machine, the overstay ladder, and the double-booking guard |
 | 07 | `07-canteen-addons.md` | Canteen point-of-sale and guest add-ons posting through server-computed paths |
 | 08 | `08-shift-close.md` | The shift lifecycle: open/close with server-sealed expected cash, one-shot physical count, variance, history |
-| 09 | `09-rates-reports.md` | The full per-branch rate-configuration UI and the organization's reports/audit-review surfaces |
+| 09 | `09-rates-reports.md` | The full per-branch rate-configuration UI, the staff-management surface, and the organization's reports/audit-review surfaces |
 | 10 | `10-hardening-gates.md` | Full mutation and money-recomputation gate runs, the consolidated offline E2E battery, cross-cutting attack tests |
 | 11 | `11-production-readiness.md` | Production Supabase push, Vercel deployment pipeline, Sentry, seed/master-data surfaces, performance passes |
 | 12 | `12-cutover-runbook.md` | The cutover runbook: vault parity replay, legacy freeze checklist, final acceptance report — the build's final verdict |

@@ -100,6 +100,9 @@ designed or built in the roadmap produced by this pass:
   provisioning stays operator-driven until then.
 - **System-wide audit review UI.** Audit logging is built from the start;
   the platform-tier review interface is a future phase.
+- **Line-item voids.** Sessions are the only voidable rows in v1; a void
+  path for canteen and add-on line items is a future phase
+  (`spec/domain-rules.md` §9 records the immutability decision).
 - **Anomaly detection and alerts, canteen inventory, exportable reports,
   printable receipts, guest history.** The legacy's own post-v1 wishlist,
   restated as future candidates — none is committed to the initial release.
@@ -108,13 +111,22 @@ designed or built in the roadmap produced by this pass:
 
 The roadmap's final phase ends at production-ready plus a cutover runbook:
 a plain-language checklist for freezing the legacy system, verifying the
-new system against it, and switching daily operations over. Verification is
-driven by the behavioral vault — the runbook replays every `vault-<nn>`
-scenario against the new system and diffs results against the vault's
-goldens (and against the legacy system itself where it can still run in a
-sandbox). Parity is measured against the vault, not against prose. Go-live
-execution and staff training consume the runbook; they are operator
+new system against it, and switching daily operations over. The runbook is
+generated into `/Silid/reports/cutover-runbook.md` alongside the phase
+acceptance reports — it is a build artifact delivered by the final phase,
+designated here so its home in `reports/` is a recorded decision.
+Verification is driven by the behavioral vault — the runbook replays every
+`vault-<nn>` scenario against the new system and diffs results against the
+vault's goldens (and against the legacy system itself where it can still
+run in a sandbox). Parity is measured against the vault, not against prose.
+Go-live execution and staff training consume the runbook; they are operator
 activities outside the build phases.
+
+One pre-existing directory note: `/Silid/canon/` holds an earlier,
+project-agnostic orchestration template that predates this specification
+set. It is inert reference material — not part of the new system, not a
+source for any artifact, and superseded by `spec/00-master-goal.md` as the
+canonical governance document.
 
 ## How to read the spec set
 

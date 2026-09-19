@@ -46,6 +46,7 @@ strings.
       "branch_id": "<uuid | null>"
     }
   }
+  ```
 
   `org_id` and `branch_id` are null for `platform_admin`; `branch_id` is
   null for `org_admin`; a `cashier` always carries both, pointing at the

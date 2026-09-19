@@ -56,7 +56,8 @@ root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md. spec/domain-rules.md (§5 canteen, §6 add-ons, §7
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass. spec/domain-rules.md (§5 canteen, §6 add-ons, §7
    recomputation) and the vault scenarios vault-08/vault-09/vault-11 are
    your behavioral law.
 2. /Silid/roadmap/00-index.md.
@@ -170,6 +171,11 @@ output as proof) → Improve (fix what verification revealed) → Remember
 /Silid/PROGRESS.md — append-only; a task is not complete until its
 closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -231,6 +237,8 @@ the standard price; a pillow added to a guest's open session shows up
 in that guest's total at checkout. A clip shows an offline canteen sale
 replaying cleanly when the network returns. The acceptance report links
 the clips, the recomputation report (zero drift), and the attack tests.
+
+Attack surface: client-computed line products, hand-posted extension charges, override race with offline replay, concurrent posting attribution — attacked via tests, E2E, and the recomputation gate in this phase.
 
 ## Acceptance-report inputs
 

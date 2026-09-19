@@ -60,7 +60,8 @@ workspace root; use POSIX-style /Silid/... paths in documentation).
 READ FIRST, in full:
 1. Every file in /Silid/spec/*.md — the spec set is canonical; it wins
    over any restatement in this prompt, and any conflict is logged to
-   /Silid/PROGRESS.md.
+   /Silid/PROGRESS.md, and the phase prompt is corrected in the same
+   pass.
 2. /Silid/roadmap/00-index.md.
 3. The "Definition of done" section of every prior phase file
    (01, 02).
@@ -177,6 +178,11 @@ revealed) → Remember (append findings, decisions, and the closing status
 to /Silid/PROGRESS.md — append-only; a task is not complete until its
 closing status is logged, including after any Improve fix).
 
+Pure-generator scaffolding tasks use the shortened loop: Research → Run
+the generator → Verify → Remember — there is no hand-written behavior to
+test first; anything hand-written on top of generator output goes through
+the full loop.
+
 DECIDE AND PROCEED: never ask open-ended questions or defer reversible,
 architectural decisions — decide and proceed, logging non-obvious
 decisions to PROGRESS.md. Narrow exceptions that DO require user
@@ -234,11 +240,16 @@ the pgTAP output proving the same wall holds at the database layer. There
 is deliberately nothing else to see — no guest-billing features exist
 yet.
 
+Attack surface: claim forgery via user_metadata, cross-organization visibility through the UI and database paths, client-side claim setting, token survival after deactivation — attacked via E2E and pgTAP in this phase.
+
 ## Acceptance-report inputs
 
-- "The operator can create an organization, set it active or suspended,
-  add branches to it, and provision the organization's administrator
-  through the Platform Admin UI."
+- "The operator can create an organization through the Platform Admin
+  UI."
+- "The operator can set an organization active or suspended."
+- "The operator can add branches to an organization."
+- "The operator can provision an organization's administrator through
+  the Platform Admin UI."
 - "A provisioned organization administrator can see and manage only
   their own organization — a second organization's data is unreachable
   through the UI and the database."
