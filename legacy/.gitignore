@@ -1,0 +1,76 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+out/
+.next/
+.serverless/
+.output/
+
+# Supabase
+supabase/.temp/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+! .env.example
+
+# Testing
+coverage/
+*.lcov
+junit.xml
+
+# System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# IDEs and Editors
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+.classpath/
+
+# Documentation
+# (Uncomment if you don't want to push docs)
+# docs/
+
+# Miscellaneous
+.temp/
+.cache/
+.eslintcache
+.stylelintcache
+.prettiercache
