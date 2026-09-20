@@ -251,7 +251,119 @@ EVIDENCE bbca036 /Silid/turbo.json:1 — test task wired; utils pipeline smoke t
 
 STATUS: DONE — Deliverable 8 (install and wire Vitest + Testing Library; coverage gate wired in CI to follow with the CI workflow file).
 
+### 2026-09-21 — Phase 01 session resume (new builder)
+
+Fresh builder session, zero prior memory. Read in full, from disk: every
+file in `/Silid/spec/*.md` (16 files, including 00-master-goal,
+CRITIQUE, CHANGELOG, legacy-behavior-vault, legacy-gap-analysis),
+`/Silid/roadmap/00-index.md`, `/Silid/roadmap/01-scaffolding.md`, and
+`/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was not read and is
+not on any reading list.
+
+**Ledger-git cross-verification findings (flagged per the verify rule,
+not silently obeyed):**
+
+1. DISCREPANCY — the ledger header's `last_commit: 9345347` is stale: HEAD
+   is `21d0b9e` and commits `d3e3331`/`21d0b9e` (Deliverable 6's Playwright
+   generator run + customization) landed after the last ledger update.
+   `git cat-file -t 9345347` confirms the old sha exists (an ancestor), so
+   the ledger is stale, not corrupted — but the header was not maintained
+   at task boundaries (the prose log ends at Deliverable 8 and never
+   logged Deliverable 6, whose generator output IS committed). Convention
+   adopted from here on: `last_commit` records the most recent commit at
+   the moment of the ledger update (the parent of the ledger commit), and
+   the header is refreshed at every task boundary.
+2. Deliverable 6's state reconstructed from git (the Remember step was
+   never run by the prior session): `d3e3331` committed the
+   `create-playwright 1.63.0` output at the workspace root (playwright
+   config, package script, .gitignore additions, lockfile); `21d0b9e`
+   customized the generated config (three app projects matching the three
+   apps, `video: 'on'`, outputDir `reports/proof/e2e`, three webServer
+   entries). NOT yet done for D6: the E2E smoke specs themselves
+   (Deliverable 15's scope), the per-app dev-server ports the three
+   webServer entries assume (all three apps currently default to 3000 —
+   two servers would collide), and an actual green run producing clips.
+   D6 is therefore REOPENED and is closed below together with D15's E2E
+   run.
+3. Defect found and fixed: the D1 customization commit (`63ebaef`) removed
+   the generated example apps incompletely — `apps/docs/next-env.d.ts` and
+   `apps/web/next-env.d.ts` remained tracked and on disk. Removed in
+   `7f77a8a`. `/Silid/apps` now contains exactly the three spec apps.
+4. Environment re-verified this session: node v24.21.0, pnpm 12.5.1,
+   git 2.55.0.windows.5, Playwright browsers present (chromium-1243),
+   working tree clean at `21d0b9e`. No SUPABASE_ACCESS_TOKEN,
+   SENTRY_AUTH_TOKEN, VERCEL_TOKEN, GITHUB_TOKEN; `git remote -v` empty;
+   no Docker daemon. Consequences: `supabase link`, the Sentry wizard,
+   Vercel linking, and a hosted CI run all remain blocked on operator
+   credentials/remote (each attempted or re-verified where possible, and
+   logged at its deliverable entry below).
+5. `pnpm test` re-run at resume: 0/13 tasks — every workspace fails with
+   "No test files found" except `@silid/utils` (D8's recorded mid-phase
+   state, resolved by Deliverable 15 below). `packages/db` and
+   `packages/api` additionally fail their 80% coverage thresholds with
+   zero tests, as recorded in the D8 entry.
+
+STATUS: IN PROGRESS — session resumed; discrepancies flagged; Deliverable
+6 reopened pending E2E run; proceeding through Deliverables 11–17.
+
+### 2026-09-21 — Deliverable 11 (tripwire registry) + Deliverable 12 (reports dirs) — DONE
+
+- D11: `/Silid/tripwire-registry.json` created write-only as the
+  bootstrap scaffold (`{"entries": []}`); consistent with the registry's
+  owner (the runner) maintaining it thereafter. It was created without
+  being read (it did not exist beforehand; the builder never reads it).
+- D12: no generator exists for directories + a README (logged
+  no-generator rationale). `/Silid/reports/` and `/Silid/reports/proof/`
+  created with `README.md` explaining the acceptance-report and
+  proof-clip layout (phase-<NN>-acceptance.md reports; clips under
+  reports/proof/e2e/; gate outputs land in reports/proof/).
+
+EVIDENCE 3a3e6dc /Silid/tripwire-registry.json:1 — bootstrap registry created (entries: [])
+EVIDENCE 3a3e6dc /Silid/reports/README.md:1 — reports/ + reports/proof/ with layout README
+
+STATUS: DONE — Deliverables 11 and 12.
 
 
 
 
+
+
+### 2026-09-21 — Deliverable 13: acceptance-report generator — DONE
+
+- No-generator rationale (logged): the acceptance-report generator is
+  bespoke build tooling; no scaffolder produces it. Full builder loop
+  applied (tests written first, then implementation).
+- Files (all hand-written domain/test code, the generator-first
+  sanctioned categories): `packages/testing/src/acceptance-report.ts`
+  (single self-contained module; runs as a CLI via Node 24's native TS
+  type-stripping when executed directly:
+  `node packages/testing/src/acceptance-report.ts --phase-file <phase.md>
+  --results <results.json> --out <report.md>`), `src/index.ts`
+  re-exports, `test/acceptance-report.test.ts` (7 tests: input parsing,
+  green/blocked/fail rendering, case-insensitive result matching, and a
+  real CLI end-to-end run into a temp dir), fixtures under
+  `test/fixtures/phase-00-fixture*.md/json`.
+- Design notes: inputs are parsed from the phase file's
+  "## Acceptance-report inputs" section (the format actually on disk in
+  the roadmap files — bullets, optionally quoted — rather than the
+  prompt's parenthetical "YAML/JSON block"); results arrive as a JSON
+  file keyed by normalized sentence; unmatched inputs render BLOCKED;
+  the report carries one line per capability with proof clip / attack
+  test / EVIDENCE slots plus MONEY RECOMPUTATION GATE and MUTATION GATE
+  lines and an ALL GREEN / NOT GREEN verdict.
+- Toolchain notes (logged per verify rule): Node 24 runs the TS module
+  directly (type stripping; `"type": "module"` set on the package to
+  silence the module-type warning — the package has no `.js` files);
+  `@types/node` added via pnpm; `"types": ["node"]` pinned in the
+  package tsconfig (TS 7.0.2 did not auto-include them); node globals
+  declared in the package's own eslint config.
+- Verification: 7/7 vitest tests pass; `tsc --noEmit` clean;
+  `eslint --max-warnings 0` clean; the CLI run against the fixture phase
+  emitted `/Silid/reports/proof/phase-00-fixture-acceptance.md`
+  (committed), ALL GREEN, well-formed (2 capability lines, each with all
+  three proof slots, both gate lines).
+
+EVIDENCE 5d806ee /Silid/packages/testing/src/acceptance-report.ts:1 — generator module + tests + fixture CLI run committed
+EVIDENCE 5d806ee /Silid/reports/proof/phase-00-fixture-acceptance.md:1 — fixture-phase report emitted by the generator CLI
+
+STATUS: DONE — Deliverable 13 (acceptance-report generator runs against a fixture phase and emits a well-formed report).
