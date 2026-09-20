@@ -1,0 +1,28 @@
+{
+  "phase": "00",
+  "phaseTitle": "Fixture",
+  "results": [
+    {
+      "input": "The fixture capability one passes with a recorded clip.",
+      "status": "pass",
+      "clip": "reports/proof/e2e/fixture/fixture-one/video.webm",
+      "attackTest": "test/attack-fixture.spec.ts > fixture capability one survives the attack",
+      "evidence": "EVIDENCE 0000000 /Silid/packages/testing/test/fixtures/phase-00-fixture.md:11 — fixture evidence line"
+    },
+    {
+      "input": "The fixture capability two recomputes every fixture figure.",
+      "status": "pass",
+      "clip": "reports/proof/e2e/fixture/fixture-two/video.webm",
+      "attackTest": "test/attack-fixture.spec.ts > fixture capability two survives the attack",
+      "evidence": "EVIDENCE 0000000 /Silid/packages/testing/test/fixtures/phase-00-fixture.md:12 — fixture evidence line"
+    }
+  ],
+  "moneyGate": {
+    "status": "not-applicable",
+    "detail": "the fixture phase produces no peso figures"
+  },
+  "mutationGate": {
+    "status": "pass",
+    "detail": "kill rate 100.00% (1/1 mutants killed) versus the 80% threshold; report: reports/proof/mutation/db/mutation.json"
+  }
+}
