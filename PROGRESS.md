@@ -475,3 +475,42 @@ EVIDENCE 56f7c69 /Silid/packages/db/stryker.conf.json:1 — mutation gate config
 EVIDENCE 56f7c69 /Silid/pnpm-workspace.yaml:1 — packageExtensions (Stryker on TS 5.9.3) + vitest-runner patch record
 
 STATUS: DONE — Deliverable 7 (Stryker wired into the pipeline with the 80% kill-rate threshold; gate bite proven with a failing scratch run).
+
+### 2026-09-21 — Deliverable 15: smoke tests everywhere + Deliverable 6 close — DONE
+
+- Unit smoke tests (hand-written; tests are a sanctioned hand-written
+  category): one per app and package. db/api/auth/schemas/offline-sync/
+  audit/utils assert the package identity export (mirrors the D8 utils
+  convention); ui renders its generated Button via Testing Library;
+  config loads the shared eslint base; the three apps assert their
+  package identity. `pnpm test` → **13/13 turbo tasks successful**
+  (db/api pass their 80% line-coverage thresholds; the mid-phase "No
+  test files found" state recorded under D8 is resolved).
+- Minimal per-app customization (sanctioned by Deliverable 2: "names,
+  base layout content"): each app's metadata title/description and h1
+  now identify the app (landing: "Silid — the room-first front-desk
+  platform"; platform-admin/frontdesk likewise), so the E2E proofs
+  assert real identity rather than template text.
+- E2E smoke tests: one Playwright spec per app under `/Silid/tests/`
+  (tests/<app>/<app>.spec.ts) — loads the root page and asserts the
+  app's title and h1. Verification revealed two defects in the D6
+  generator config (Improve step): (1) all three `webServer` entries
+  defaulted to port 3000 — two servers would collide; fixed with
+  distinct ports (platform-admin 3001, frontdesk 3002 via webServer
+  env PORT — a `-- -p` passthrough turned out to be forwarded literally
+  by pnpm and was removed); (2) verified fixed by the green run below.
+- Proof clips: `pnpm test:e2e` → **3 passed (11.3s)**; every test
+  records a video (`video: 'on'`, outputDir `reports/proof/e2e/`)
+  — three playable .webm clips (EBML header verified per file) now
+  committed under `/Silid/reports/proof/e2e/`.
+- D6 closure: the Playwright generator run + video-recording
+  configuration (committed 2026-09-20 in d3e3331/21d0b9e, Remember step
+  never executed by the prior session) is now verified end to end:
+  browser tests run green against built apps and clips land under
+  `/Silid/reports/proof/` per the deliverable.
+
+EVIDENCE ed4fd89 /Silid/packages/ui/test/smoke.test.tsx:1 — smoke unit tests in all 13 workspaces; pnpm test 13/13
+EVIDENCE 8fda7b6 /Silid/tests/landing/landing.spec.ts:1 — per-app E2E specs, port fix, and three proof clips
+EVIDENCE 8fda7b6 /Silid/reports/proof/e2e/landing-landing-landing-lo-3403c-page-and-shows-its-identity-landing/video.webm:1 — playable landing proof clip (webm)
+
+STATUS: DONE — Deliverable 15 (smoke unit + E2E everywhere, clips recorded) and Deliverable 6 closed (Playwright pipeline green with video proof).
