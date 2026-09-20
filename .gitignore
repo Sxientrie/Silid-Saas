@@ -1,15 +1,45 @@
 # Dependencies
 node_modules/
-
-# Build output
-legacy/dist/
-
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# Dependencies
-node_modules
 .pnp
 .pnp.js
+
+# Build output
+.next/
+out/
+build
+dist
+legacy/dist/
+
+# Turbo
+.turbo/
+
+# Testing
+coverage/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+reports/proof/e2e/.last-run.json
+
+# Mutation testing (Stryker sandboxes)
+.stryker-tmp/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Tool caches
+.eslintcache
+*.tsbuildinfo
+
+# Scaffolding staging
+.tmp-scaffold/
 
 # Local env files
 .env
@@ -18,39 +48,15 @@ node_modules
 .env.test.local
 .env.production.local
 
-# Testing
-coverage
-
-# Turbo
-.turbo
-
 # Vercel
 .vercel
 
-# Build Outputs
-.next/
-out/
-build
-dist
+# Deployed README (stale create-turbo starter kept only on disk)
+/README.md
 
-# Scaffolding staging
-.tmp-scaffold/
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Misc
+# OS junk
 .DS_Store
+Thumbs.db
+desktop.ini
+Desktop.ini
 *.pem
-
-# Playwright
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
-/playwright/.auth/
-
-# Stryker temp sandboxes
-.stryker-tmp/

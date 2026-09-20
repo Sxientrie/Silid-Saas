@@ -661,3 +661,28 @@ Re-checked live on operator prompt. Findings:
 EVIDENCE bec4aaf /Silid/.mcp.json:1 — the committed MCP config (ref of record, spec/supabase.md §3 shape) whose live server was verified in this session: get_project_url → tymalzlhygkysdychbpv, execute_sql → PostgreSQL 17.6, list_migrations → 0, advisors → 2 WARNs on pre-existing public.rls_auto_enable() (full results in the prose above)
 
 STATUS: MCP verified logged in and live; CLI link unchanged (operator token); advisor finding routed to Phase 02.
+
+### 2026-09-21 — Repository hygiene before first push (operator request)
+
+- Removed from the index: the root `README.md` (stale create-turbo
+  starter boilerplate still describing the deleted `docs`/`web` example
+  apps — kept on disk, ignored via root-scoped `/README.md`) and
+  Playwright's churn file `reports/proof/e2e/.last-run.json` (ignored;
+  the proof clips themselves stay tracked). `reports/README.md` (the
+  Deliverable 12 deliverable) and `legacy/README.md` (reference
+  material) remain tracked — the ignore pattern is root-scoped
+  deliberately.
+- `.gitignore` rewritten cleanly: every previously-ignored pattern
+  preserved (verified against the old file), plus `*.log` (stryker.log,
+  pnpm-debug.log, turbo logs outside .turbo/), `*.tsbuildinfo`,
+  `.eslintcache`, Windows junk (`Thumbs.db`, `desktop.ini`), and the two
+  removals above. Deduplicated the merged create-turbo/create-next-app
+  sections.
+- Verification: `git ls-files -ci --exclude-standard` → empty (no
+  tracked file matches an ignore pattern); `git check-ignore` spot
+  checks all pass; `git ls-files` scanned for log/cache/junk — the two
+  removals above were the only hits.
+
+EVIDENCE <this commit> /Silid/.gitignore:1 — cleaned ignore rules, junk untracked
+
+STATUS: DONE — repo is push-ready; spec/, roadmap/, canon/, legacy/ untouched.
