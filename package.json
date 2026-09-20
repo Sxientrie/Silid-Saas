@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "rule-lint": "node packages/testing/src/rule-lint.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

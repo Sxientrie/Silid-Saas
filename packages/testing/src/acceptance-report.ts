@@ -59,7 +59,8 @@ export function normalizeSentence(sentence: string): string {
 
 /**
  * Extracts the acceptance-input sentences from a phase file's
- * "## Acceptance-report inputs" section (bullets, optionally quoted).
+ * "## Acceptance-report inputs" section (bullets, optionally quoted,
+ * possibly soft-wrapped across continuation lines).
  */
 export function parseAcceptanceInputs(phaseFileMarkdown: string): string[] {
   const sectionStart =
@@ -70,14 +71,26 @@ export function parseAcceptanceInputs(phaseFileMarkdown: string): string[] {
   );
   const nextSection = /^##\s/m.exec(rest);
   const section = nextSection ? rest.slice(0, nextSection.index) : rest;
-  return section
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith("- "))
-    .map((line) => line.slice(2).trim())
-    .map((line) =>
-      /^".*"$/s.test(line) ? line.slice(1, -1).trim() : line,
-    );
+
+  const inputs: string[] = [];
+  let current: string[] | null = null;
+  for (const line of section.split(/\r?\n/)) {
+    const bullet = /^[ \t]*-[ \t]+(.*)$/.exec(line);
+    if (bullet) {
+      if (current) inputs.push(current.join(" "));
+      current = [bullet[1]!];
+    } else if (current && line.trim() !== "") {
+      current.push(line.trim());
+    } else if (current && line.trim() === "") {
+      inputs.push(current.join(" "));
+      current = null;
+    }
+  }
+  if (current) inputs.push(current.join(" "));
+  return inputs
+    .map((input) => input.replace(/\s+/g, " ").trim())
+    .filter((input) => input !== "")
+    .map((input) => (/^".*"$/s.test(input) ? input.slice(1, -1).trim() : input));
 }
 
 /** Parses and validates a results JSON file's text. */

@@ -51,6 +51,21 @@ describe("parseAcceptanceInputs", () => {
       [],
     );
   });
+
+  it("joins bullets soft-wrapped across continuation lines", () => {
+    const inputs = parseAcceptanceInputs(
+      [
+        "## Acceptance-report inputs",
+        "",
+        '- "A clean checkout installs, builds, lints, and tests with one command',
+        '  and zero errors."',
+        "",
+      ].join("\n"),
+    );
+    expect(inputs).toEqual([
+      "A clean checkout installs, builds, lints, and tests with one command and zero errors.",
+    ]);
+  });
 });
 
 describe("buildAcceptanceReport", () => {
