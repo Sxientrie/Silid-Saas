@@ -683,6 +683,6 @@ STATUS: MCP verified logged in and live; CLI link unchanged (operator token); ad
   checks all pass; `git ls-files` scanned for log/cache/junk — the two
   removals above were the only hits.
 
-EVIDENCE <this commit> /Silid/.gitignore:1 — cleaned ignore rules, junk untracked
+EVIDENCE 5798f49 /Silid/.gitignore:1 — cleaned ignore rules, junk untracked
 
 STATUS: DONE — repo is push-ready; spec/, roadmap/, canon/, legacy/ untouched.
