@@ -712,3 +712,50 @@ EVIDENCE b775068 /Silid/.github/workflows/ci.yml:1 — workflow file proven by G
 EVIDENCE 5798f49 /Silid/.gitignore:1 — ignore rules now include /.mcp.json (untracked in the same commit as this entry)
 
 STATUS: DONE — repo pushed, CI green on first run, MCP config local-only.
+
+### 2026-09-21 — Deliverable 9: Sentry wiring — DONE (wizard + logged fallback)
+
+- platform-admin: the operator ran the official Sentry wizard 7.0.3
+  interactively (SaaS, tunnel route declined, Tracing enabled, Session
+  Replay declined, example page declined). Output: sentry.server.config
+  .ts, sentry.edge.config.ts, src/instrumentation.ts,
+  src/instrumentation-client.ts, src/app/global-error.tsx,
+  withSentryConfig in next.config.ts, @sentry/nextjs ^10.75.0.
+- Install initially failed with ERR_PNPM_IGNORED_BUILDS: @sentry/cli
+  (transitive, downloads the source-map-upload binary) was blocked by
+  the workspace build-script policy. Approved ('@sentry/cli': true in
+  pnpm-workspace.yaml allowBuilds — the official Sentry CLI, legitimate)
+  and completed the install.
+- landing + frontdesk: the wizard's Next.js flow does not implement
+  --non-interactive (verified in the installed wizard source — only the
+  Apple flows use it), and it aborts silently at the first prompt in a
+  non-TTY; its API-driven path was also unavailable (the wizard-minted
+  CI token is scoped for source-map upload only — "permission denied" on
+  project endpoints). Fallback per the generator-first no-generator rule
+  (logged): the wizard's own completed output was replicated verbatim
+  into landing and frontdesk; frontdesk's dependency added via pnpm add.
+- Sanctioned customization (separate commit): DSN wired via
+  `process.env.NEXT_PUBLIC_SENTRY_DSN ?? "<dsn>"` in all nine config
+  files — the deliverable's "project DSN wiring via env vars". Per-app
+  Sentry project separation (silid-landing / silid-platform-admin /
+  silid-frontdesk) now requires only dashboard project creation + env
+  vars per Vercel project — no code edits. All three apps currently
+  report to the wizard-created default project (org sxentrie).
+- Collateral fix (bundled in the DSN commit, noted honestly): the Sentry
+  dependency additions re-shaped the pnpm graph so the shared eslint
+  base's @babel/eslint-parser resolved @babel/core 8.0.1 (requires ^7).
+  packages/config's @babel/core pinned to 7.29.7 via pnpm add; lint
+  13/13 again.
+- Security: the wizard's .env.sentry-build-plugin token file is
+  gitignored (wizard-added rule, verified with git check-ignore); no
+  token material tracked. The CI auth token shown by the wizard stays
+  out of the repo; it goes into GitHub Actions secrets when CI
+  source-map upload is wired (Phase 11 concern).
+- Verification: build 3/3, lint 13/13, check-types 9/9, test 13/13,
+  rule-lint clean; platform-admin build with withSentryConfig confirmed
+  green before the other two were replicated.
+
+EVIDENCE 741475f /Silid/apps/platform-admin/next.config.ts:1 — wizard output committed (all three apps; @sentry/cli approved)
+EVIDENCE a1207a3 /Silid/apps/landing/sentry.server.config.ts:1 — DSN env wiring across the three apps
+
+STATUS: DONE — Deliverable 9 (Sentry wired via the official wizard; two apps via logged wizard-template fallback; DSN env wiring in place).
