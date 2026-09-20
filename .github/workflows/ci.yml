@@ -1,0 +1,65 @@
+name: CI
+
+# spec/deployment-operations.md §3 — every push/pull request runs, in
+# order: rule linter → lint → typecheck → test (coverage gates) →
+# mutation gate → build → E2E (video clips archived as proof artifacts).
+# RLS policy tests (supabase db test) join the test stage from Phase 02,
+# when the schema exists (spec/roadmap/02-database-tenancy-money.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm (packageManager field)
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rule linter (documentation pipeline)
+        run: pnpm rule-lint
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm check-types
+
+      - name: Test (Vitest, coverage gates on db/api)
+        run: pnpm test
+
+      - name: Mutation gate (Stryker, kill rate >= 80% on db/api)
+        run: pnpm mutation
+
+      - name: Build
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: E2E (video proof clips)
+        run: pnpm test:e2e
+
+      - name: Archive proof artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: proof
+          path: |
+            reports/proof/e2e/
+            reports/proof/mutation/
+            coverage/
+          if-no-files-found: warn
