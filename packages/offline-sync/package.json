@@ -1,0 +1,16 @@
+{
+  "name": "@silid/offline-sync",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@silid/config": "workspace:*",
+    "eslint": "10.9.1"
+  }
+}
