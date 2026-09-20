@@ -514,3 +514,30 @@ EVIDENCE 8fda7b6 /Silid/tests/landing/landing.spec.ts:1 — per-app E2E specs, p
 EVIDENCE 8fda7b6 /Silid/reports/proof/e2e/landing-landing-landing-lo-3403c-page-and-shows-its-identity-landing/video.webm:1 — playable landing proof clip (webm)
 
 STATUS: DONE — Deliverable 15 (smoke unit + E2E everywhere, clips recorded) and Deliverable 6 closed (Playwright pipeline green with video proof).
+
+### 2026-09-21 — Deliverable 16: legacy exclusions — DONE (proofs collected)
+
+`/Silid/legacy` (144 tracked files) is reference material and is
+excluded from every gate. Proof output per gate, collected live on
+2026-09-21:
+
+- **Workspace scope** — `pnpm-workspace.yaml` globs are `apps/*` and
+  `packages/*` only; `pnpm ls -r` lists 13 workspaces, 0 under legacy.
+  No build (turbo/next), test, or lint task can ever select it.
+- **Lint** — a workspace eslint run's JSON file list contains 0 legacy
+  paths (utils: 1 file linted, 0 legacy). Negative proof: explicitly
+  passing a legacy file fails with "No files matching the pattern
+  'legacy/eslint.config.js' were found" (exit nonzero) — outside every
+  config's base path.
+- **Test/coverage** — packages/db's vitest coverage report lists only
+  `src/index.ts` (100% lines, threshold green); include patterns are
+  `test/**` and `src/**` per workspace.
+- **Mutation** — stryker's debug "All input files" list for db contains
+  only `packages/db/**` paths; `mutate: ["src/**/*.ts"]` plus
+  `ignorePatterns: ["../../legacy/**"]` (committed 56f7c69) exclude it
+  explicitly.
+
+EVIDENCE 63ebaef /Silid/pnpm-workspace.yaml:1 — workspace globs exclude legacy (file unchanged since the D1 reshape; verified in the tree at 62a393e)
+EVIDENCE 56f7c69 /Silid/packages/db/stryker.conf.json:1 — explicit legacy ignorePatterns in the mutation gate
+
+STATUS: DONE — Deliverable 16 (all gate globs report zero legacy files; proofs above are from live runs).
