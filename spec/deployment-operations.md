@@ -33,13 +33,14 @@ with the ref from this file, never from memory.
 | Production region | Recorded at creation by the operator per this spec's region rule (Philippines-serving nearest region). The region is not queryable through the CLI/MCP tooling available to the Phase 01 builder (CLI login pending operator credentials), so the builder could not independently confirm it — verify in the Supabase dashboard (Project Settings → General) and amend this row if it differs. |
 | Test project ref (CI/runbook) | The local Supabase stack (`supabase start`) is used — recorded decision, Phase 01 (this spec's cost envelope allows "one test project or the local stack"; the local stack keeps the envelope minimal, and CI runners can run the local stack for RLS/money proofs in later phases). |
 
-`supabase link` status: the project directory (`/Silid/supabase`) is the
-`supabase init` output; linking (`supabase login` then `supabase link
---project-ref tymalzlhygkysdychbpv`) requires operator CLI credentials and
-could not be completed by the Phase 01 builder session (non-interactive
-environment, no `SUPABASE_ACCESS_TOKEN`). Run `pnpm exec supabase login`
-once (or set `SUPABASE_ACCESS_TOKEN`), then `pnpm exec supabase link
---project-ref tymalzlhygkysdychbpv`.
+`supabase link` status: **completed 2026-09-21**. The project directory
+(`/Silid/supabase`) is the `supabase init` output; the operator ran
+`pnpm exec supabase login` once (browser authorization) and the builder
+completed `pnpm exec supabase link --project-ref tymalzlhygkysdychbpv`
+against the ref of record. The CLI stores the link state under
+`supabase/.temp/` (gitignored, CLI-managed): `project-ref`,
+`linked-project.json` (project name "Silid - Hotel Management"), and the
+pooler URL. Re-running the link command is idempotent.
 
 The scaffolding phase's Definition of done includes filling this table and
 committing it. A downstream phase that finds these fields still

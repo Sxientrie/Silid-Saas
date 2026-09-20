@@ -759,3 +759,32 @@ EVIDENCE 741475f /Silid/apps/platform-admin/next.config.ts:1 — wizard output c
 EVIDENCE a1207a3 /Silid/apps/landing/sentry.server.config.ts:1 — DSN env wiring across the three apps
 
 STATUS: DONE — Deliverable 9 (Sentry wired via the official wizard; two apps via logged wizard-template fallback; DSN env wiring in place).
+
+### 2026-09-21 — Deliverable 5 residue closed: supabase link completed — builder-side Definition of done met
+
+- The operator ran `pnpm exec supabase login` from the repo root (the
+  CLI is a pinned workspace devDependency, not a global install — the
+  operator's first attempts failed outside the repo / without pnpm
+  context). Browser authorization created token
+  `cli_MODiE@DESKTOP-IGVFPDM_1789938650` (stored locally by the CLI,
+  never in the repo).
+- The builder then completed `pnpm exec supabase link --project-ref
+  tymalzlhygkysdychbpv` (non-interactive once logged in): "Finished
+  supabase link." Link state verified under `supabase/.temp/`
+  (gitignored, CLI-managed): `project-ref` = tymalzlhygkysdychbpv,
+  `linked-project.json` (project "Silid - Hotel Management"), pooler
+  URL. Re-run confirmed idempotent.
+- Spec amended in the same commit (deployment-operations.md §2 link
+  status → completed; CHANGELOG entry added) per the amendment rule.
+- Acceptance report regenerated: **ALL GREEN — 7/7 capability lines**
+  (`/Silid/reports/phase-01-acceptance.md`; results in
+  `reports/proof/phase-01-results.json`).
+- Builder-side Definition of done status: every checkable item now
+  holds except Deliverable 17 (Vercel linking — operator credentials)
+  and the formal close, which belongs to the runner's review gate
+  (ledger-git cross-verification, attack battery, tripwire check, fresh
+  review sub-agent) per spec/00-master-goal.md.
+
+EVIDENCE <commit> /Silid/spec/deployment-operations.md:36 — link status recorded as completed; CHANGELOG entry in same commit
+
+STATUS: DONE — Deliverable 5 fully closed (init + refs + link). Phase 01 builder-side complete; D17 (Vercel) and the runner review gate remain.
