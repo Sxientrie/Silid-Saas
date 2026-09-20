@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "packageManager": "pnpm",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "testRunner_comment": "Take a look at https://github.com/stryker-mutator/stryker-js/tree/master/packages/vitest-runner for information about the vitest plugin.",
+  "reporters": ["clear-text", "progress", "html", "json"],
+  "coverageAnalysis": "perTest",
+  "mutate": ["src/**/*.ts"],
+  "ignorePatterns": ["../../legacy/**", "coverage/**"],
+  "thresholds": { "high": 90, "low": 80, "break": 80 },
+  "htmlReporter": { "fileName": "../../reports/proof/mutation/api/mutation.html" },
+  "jsonReporter": { "fileName": "../../reports/proof/mutation/api/mutation.json" }
+}

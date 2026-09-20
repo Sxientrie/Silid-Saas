@@ -9,7 +9,8 @@
     "check-types": "turbo run check-types",
     "test": "turbo run test",
     "test:e2e": "playwright test",
-    "rule-lint": "node packages/testing/src/rule-lint.ts"
+    "rule-lint": "node packages/testing/src/rule-lint.ts",
+    "mutation": "turbo run mutation"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
