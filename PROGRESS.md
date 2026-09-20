@@ -412,3 +412,66 @@ EVIDENCE c755e34 /Silid/packages/testing/src/rule-lint.ts:1 — linter module + 
 EVIDENCE c755e34 /Silid/package.json:1 — root rule-lint script
 
 STATUS: DONE — Deliverable 14 (rule linter demonstrably fails the non-compliant fixture and passes the compliant tree).
+
+### 2026-09-21 — Deliverable 7: Stryker mutation gate — DONE (gate live; bite proven)
+
+- Research finding (logged per verify rule): the phase prompt's
+  "`pnpm dlx @stryker-mutator/init` family" is stale —
+  `@stryker-mutator/init` does not exist on the npm registry (404,
+  checked 2026-09-21); `init` is a subcommand of `@stryker-mutator/core`
+  (`pnpm dlx @stryker-mutator/core@10.0.0 init --help`: "Usage: stryker
+  init [options]" — no non-interactive flags). The interactive prompts
+  (inquirer list/checkbox, read from the installed
+  `dist/src/initializer/` sources) require a TTY; piped stdin hangs and
+  this Windows host has no `script` pseudo-TTY utility. Per the
+  generator-first operating rules (prompt cannot be bypassed here), the
+  config was hand-written to the MINIMUM the init writer itself emits
+  (`packageManager`, `reporters`, `testRunner` + comment — read from
+  `dist/src/initializer/stryker-config-writer.js` on disk) plus the
+  spec-mandated mutation targets/thresholds, which the deliverable
+  requires configuring anyway. No-generator rationale recorded here.
+- Gate configuration (packages/db and packages/api, the spec's mutation
+  targets for this phase): `testRunner: vitest`,
+  `mutate: ["src/**/*.ts"]`,
+  `thresholds: { high: 90, low: 80, break: 80 }` (break = CI fails below
+  80% kill rate), reporters clear-text/progress/html/json with
+  html/json outputs landing in `/Silid/reports/proof/mutation/<pkg>/`,
+  `ignorePatterns: ["../../legacy/**", "coverage/**"]` (explicit legacy
+  exclusion). Scripts: `mutation` in db/api; root `pnpm mutation` =
+  `turbo run mutation`; turbo task `mutation` (cache off). Wiring into
+  the CI workflow file follows with the CI deliverable below.
+- TS 7 toolchain fallback decision (spec/tech-stack.md anticipated this:
+  "if a pinned tool lacks TS 7 support, the scaffolding phase logs the
+  fallback decision"): Stryker 10.0.0 — current latest per registry —
+  crashed under the workspace's TypeScript 7.0.2
+  (`ts.parseConfigFileTextToJson is not a function`; the native TS 7
+  removed the API). Stryker's troubleshooting docs have no entry for it.
+  Fallback (logged, scoped): pnpm `packageExtensions` in
+  `pnpm-workspace.yaml` give `@stryker-mutator/core@10.0.0` and
+  `@stryker-mutator/vitest-runner@10.0.0` a `typescript@5.9.3`
+  dependency, so Stryker's own module graph resolves the TS 5.9.3 line.
+  The workspace root stays on 7.0.2 (check-types green) and apps stay on
+  their generator-pinned TS 5 line — nothing else moved.
+- Second compat fix (pnpm patch): the vitest-runner eagerly
+  `JSON.stringify`s vitest 5's (circular) config object for a debug log,
+  crashing every run (`dist/src/vitest-test-runner.js:95`). Patched via
+  `pnpm patch` / `pnpm patch-commit` to try/catch the dump
+  (recorded in `pnpm-workspace.yaml` patchedDependencies). Registry
+  versions unaffected.
+- Verification: `pnpm mutation` → 2/2 tasks successful; both packages'
+  reports written to `/Silid/reports/proof/mutation/{db,api}/`.
+  Stryker's bite was proven live: with a temporary scratch module (4
+  mutants, uncovered by tests) the gate FAILED with "Final mutation
+  score 0.00 under breaking threshold 80, setting exit code to 1" — the
+  scratch file was then removed. With the current skeleton code
+  (`as const` identity export) Stryker instruments 0 mutants and the
+  score is NaN ≥ threshold (pass); real mutants arrive with Phase 02's
+  schema/API code, where the gate becomes substantive.
+- Also fixed during this task: the ten D15 smoke unit tests (all apps +
+  packages) were written and `pnpm test` is now 13/13 green — recorded
+  under Deliverable 15 below.
+
+EVIDENCE 56f7c69 /Silid/packages/db/stryker.conf.json:1 — mutation gate config (thresholds.break 80, reports to reports/proof/mutation)
+EVIDENCE 56f7c69 /Silid/pnpm-workspace.yaml:1 — packageExtensions (Stryker on TS 5.9.3) + vitest-runner patch record
+
+STATUS: DONE — Deliverable 7 (Stryker wired into the pipeline with the 80% kill-rate threshold; gate bite proven with a failing scratch run).
