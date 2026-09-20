@@ -785,6 +785,6 @@ STATUS: DONE — Deliverable 9 (Sentry wired via the official wizard; two apps v
   (ledger-git cross-verification, attack battery, tripwire check, fresh
   review sub-agent) per spec/00-master-goal.md.
 
-EVIDENCE <commit> /Silid/spec/deployment-operations.md:36 — link status recorded as completed; CHANGELOG entry in same commit
+EVIDENCE 72fa22e /Silid/spec/deployment-operations.md:36 — link status recorded as completed; CHANGELOG entry in same commit
 
 STATUS: DONE — Deliverable 5 fully closed (init + refs + link). Phase 01 builder-side complete; D17 (Vercel) and the runner review gate remain.
