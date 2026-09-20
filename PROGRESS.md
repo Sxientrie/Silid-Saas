@@ -222,6 +222,36 @@ EVIDENCE 44e07d4 /Silid/supabase/config.toml:1 — supabase init output committe
 
 STATUS: DONE — Deliverable 5 (run supabase init; refs recorded; `supabase link` pending operator CLI login — the one open item of this phase).
 
+### 2026-09-20 — Deliverable 8: Vitest + Testing Library wiring — DONE
+
+- No-generator note: Vitest ships no init command; configs are the minimal
+  hand-written wiring per official docs (logged as no-generator-available).
+- Installed via pnpm (never hand-edited manifests): vitest@5.0.1 -E in all
+  10 packages + 3 apps; jsdom@30.1.0 + @testing-library/react@16.3.3 in
+  the React workspaces (3 apps + ui); @vitest/coverage-v8@5.0.1 -E in
+  packages/db and packages/api.
+- Pipeline wiring: turbo.json gains the `test` task (outputs coverage/**);
+  root script `test` = `turbo run test`; every workspace got a `test`
+  script via `pnpm pkg set` (db/api run `vitest run --coverage` — the gate
+  is un-skippable; others `vitest run`). Vitest configs: packages/db and
+  packages/api enforce `thresholds.lines: 80` over `src/**` (v8
+  provider); apps + ui run jsdom; test locations are `<workspace>/test/`.
+- Verification: the pipeline-proof smoke test
+  (`packages/utils/test/smoke.test.ts`) passes through `pnpm test`
+  (turbo dispatched all 13 workspaces; utils green). The 12 other
+  workspaces fail only with "No test files found" until Deliverable 15
+  adds their smoke tests — expected mid-phase state, resolved by D15
+  before phase close. The coverage gate was proven to bite early:
+  `vitest run --coverage --passWithNoTests` in packages/db FAILED with
+  "Coverage for lines (0%) does not meet global threshold (80%)" — the
+  threshold machinery is live, and D15's tests must actually cover the
+  packages to pass it.
+
+EVIDENCE bbca036 /Silid/turbo.json:1 — test task wired; utils pipeline smoke test green through turbo
+
+STATUS: DONE — Deliverable 8 (install and wire Vitest + Testing Library; coverage gate wired in CI to follow with the CI workflow file).
+
+
 
 
 
