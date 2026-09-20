@@ -42,3 +42,13 @@ reports/
   re-runs the generator with that phase's inputs and results.
 - Binary clips are committed so the acceptance history is reviewable from
   any checkout; they are small (seconds-long clips of smoke tests).
+
+## Preview deployments
+
+All three applications are wired to Vercel with the repository's Git
+integration (`silid-landing`, `silid-platform-admin`,
+`silid-frontdesk`; each project's Root Directory points at its
+`apps/<name>` folder). Every pull request automatically produces a
+preview deployment per application, linked on the PR; merges to `main`
+deploy production URLs. Production domains and environment wiring are
+the Phase 11 deliverable (`spec/deployment-operations.md`).
