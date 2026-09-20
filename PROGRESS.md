@@ -367,3 +367,48 @@ EVIDENCE 5d806ee /Silid/packages/testing/src/acceptance-report.ts:1 — generato
 EVIDENCE 5d806ee /Silid/reports/proof/phase-00-fixture-acceptance.md:1 — fixture-phase report emitted by the generator CLI
 
 STATUS: DONE — Deliverable 13 (acceptance-report generator runs against a fixture phase and emits a well-formed report).
+
+### 2026-09-21 — Deliverable 14: rule-lint CI job — DONE (proven against a non-compliant fixture)
+
+- No-generator rationale (logged): bespoke build tooling; no scaffolder
+  produces a documentation-policy linter. Full builder loop applied
+  (tests first: 11 new rule-lint tests; 18 total in the package).
+- `packages/testing/src/rule-lint.ts`, run from the repo root via the
+  new root script `pnpm rule-lint`
+  (`node packages/testing/src/rule-lint.ts`, default scan: spec/*.md,
+  roadmap/*.md, PROGRESS.md — 31 files). Three checks:
+  1. `terminology-qualified` — flags the unqualified term outside
+     permitted contexts; understands the qualified/hyphenated/soft-wrap
+     forms, permits the master goal's own TERMINOLOGY section (the
+     rule's definition home), and excludes `spec/CRITIQUE.md` as a
+     historical review record quoting fixed findings (logged decision;
+     spec/00-master-goal.md Step 6: "a historical review record, and
+     nothing more").
+  2. `evidence-tag-missing` — every PROGRESS.md task block whose STATUS
+     claims DONE must carry a resolvable EVIDENCE tag
+     (`EVIDENCE <sha> <path>:<line>`); IN-PROGRESS statuses are exempt
+     (not completion claims).
+  3. `acceptance-input-sentence` — every roadmap file's
+     "## Acceptance-report inputs" bullets must be single sentences
+     (boundary heuristic tolerates ".md" and "e.g." mid-sentence;
+     two-sentence bullets fail).
+- Parser fix found by verification: `parseAcceptanceInputs` previously
+  took only the first line of a soft-wrapped bullet — it now joins
+  continuation lines (this also fixed the acceptance-report generator
+  for the wrapped inputs actually used by the roadmap files).
+- Non-compliant-fixture proof (DoD requirement, run once): the CLI run
+  against `packages/testing/test/fixtures/violation/` (bare term, DONE
+  without EVIDENCE, two-sentence input) exited 1 with:
+  `rule-lint: ...violation-doc.md:3 [terminology-qualified] ...`,
+  `rule-lint: ...PROGRESS.md:5 [evidence-tag-missing] ...`,
+  `rule-lint: ...01-violation-phase.md:5 [acceptance-input-sentence] ...`
+  — `3 violation(s) across 3 files`. The fixture files remain on disk as
+  the unit tests' attack material; the compliant tree scan exits 0
+  (`rule-lint: clean (31 files scanned)`).
+- CI wiring: the workflow file (Deliverable for CI below) runs
+  `pnpm rule-lint` as its own step on every push/PR.
+
+EVIDENCE c755e34 /Silid/packages/testing/src/rule-lint.ts:1 — linter module + 11 tests + violation fixtures committed
+EVIDENCE c755e34 /Silid/package.json:1 — root rule-lint script
+
+STATUS: DONE — Deliverable 14 (rule linter demonstrably fails the non-compliant fixture and passes the compliant tree).
