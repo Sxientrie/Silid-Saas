@@ -68,7 +68,7 @@ Each item is one task for the builder loop (`spec/builder-protocol.md` §1):
     test results, one line per capability with clip/test/EVIDENCE slots,
     plus MONEY RECOMPUTATION GATE and MUTATION GATE result lines.
 14. **Build the rule-lint CI job**: a linter that fails CI on
-    documentation-pipeline violations — unqualified "billing" outside
+    documentation-pipeline violations — the unqualified term outside
     permitted quotations in spec/roadmap artifacts, missing EVIDENCE tags
     on PROGRESS.md completion claims, acceptance inputs that are not
     single sentences. Runs on every PR.
@@ -78,6 +78,10 @@ Each item is one task for the builder loop (`spec/builder-protocol.md` §1):
     `pnpm lint` green locally and in CI.
 16. **Exclude `/Silid/legacy`** from all build, lint, coverage, mutation,
     and test globs (`spec/monorepo-structure.md` §5).
+17. **Link the three applications on Vercel** (per the platform's CLI/
+    dashboard flow — exact syntax via `--help` at run time): preview
+    deployments per pull request working end to end; production linking
+    stays with Phase 11.
 
 ## Copy-paste prompt for this phase
 
@@ -226,7 +230,7 @@ Exists: /Silid/spec/* (complete), /Silid/roadmap/* (complete),
 /Silid/legacy (read-only reference — never modified, never built on,
 never ported from; excluded from every build/lint/test glob),
 /Silid/canon (pre-existing template, inert), git history.
-You build: every Deliverables item 1–16 of this phase — the monorepo,
+You build: every Deliverables item 1–17 of this phase — the monorepo,
 apps, packages, Supabase project dir + links, E2E/mutation/coverage
 tooling, Sentry, PROGRESS.md ledger, tripwire registry, reports/ dirs,
 acceptance-report generator, rule linter, smoke tests, legacy exclusions.
@@ -252,6 +256,8 @@ DEFINITION OF DONE (technical, all checkable):
   non-compliant fixture (proven once, then fixed).
 - Legacy exclusions proven: the mutation/coverage/lint globs report zero
   files under /Silid/legacy.
+- Opening a pull request produces a preview deployment for each of the
+  three applications (Vercel linking from Deliverable 17).
 - IMPORTANT: if any claim in this prompt contradicts disk, --help,
   official docs, or the ledger, flag the discrepancy in PROGRESS.md and
   follow the consultable source — do not silently obey.

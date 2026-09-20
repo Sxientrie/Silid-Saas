@@ -2,8 +2,8 @@
 
 ## What this phase accomplishes and why it comes here
 
-This is the heart of the product: check-in, check-out with sealed guest
--billing totals, the room status machine, and the overstay ladder. The
+This is the heart of the product: check-in, check-out with sealed
+guest-billing totals, the room status machine, and the overstay ladder. The
 database machinery exists (Phase 02); the API layer exists (Phase 04);
 the desk shell and offline contract exist (Phase 05). This phase joins
 them into the desk's core workflow and proves the money arithmetic end

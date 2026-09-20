@@ -196,10 +196,11 @@ are recorded in spec/CHANGELOG.md in the same commit.
 WHAT ALREADY EXISTS vs WHAT YOU BUILD:
 Exists: Phases 01–08 (tooling; database incl. the merge function; the
 rate service and audit package; sessions/canteen/addons/shift ledgers
-and surfaces; the shift history view). You build: Deliverables 1–7 of
+and surfaces; the shift history view). You build: Deliverables 1–8 of
 this phase — features/rates (full card editor), features/reports
 (dashboard, audit review), scope discipline, E2E proofs, fixture
-round-trip proof, gate runs.
+round-trip proof, gate runs, features/staff (provision, list,
+deactivate).
 
 DEFINITION OF DONE (technical, all checkable):
 - An org-admin edits a branch's overnight tier; that branch's next

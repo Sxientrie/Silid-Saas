@@ -258,8 +258,8 @@ Attack surface: the shift-boundary attribution seam, post-close figure movement,
 - "A branch can have only one open shift at a time; the second open is
   refused no matter which desk tries it."
 - "Ending a shift seals the expected cash server-side: room money by
-  checkout time, canteen money by sale time, add-ons by posting time,
-  voided sessions excluded."
+  checkout time, canteen money by sale time, add-on money riding the
+  checkout time, voided sessions excluded."
 - "A guest checked in during one shift but checked out during the next
   pays into the second shift's expected cash."
 - "Nothing that happens after a shift closes changes its sealed

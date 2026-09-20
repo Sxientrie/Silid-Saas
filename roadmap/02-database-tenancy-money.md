@@ -261,11 +261,12 @@ WHAT ALREADY EXISTS vs WHAT YOU BUILD:
 Exists: the Phase 01 monorepo (apps/packages skeletons, test tooling,
 CI, ledger, report generator), /Silid/supabase (initialized, linked),
 spec/* and roadmap/*, legacy (read-only reference only).
-You build: Deliverables 1–12 of this phase — schema, triggers, RLS
+You build: Deliverables 1–14 of this phase — schema, triggers, RLS
 policies, pgTAP proof, checkout sealing RPC, void RPC + audit path,
 escalation job, money reference fixture, vault parity fixture, rate
--config merge function, Drizzle schema. No application UI exists yet and
-none is built here.
+-config merge function, Drizzle schema, shift-close sealing RPC,
+money-recomputation utility. No application UI exists yet and none is
+built here.
 
 DEFINITION OF DONE (technical, all checkable):
 - `supabase db push` (local) applies all migrations cleanly from scratch;

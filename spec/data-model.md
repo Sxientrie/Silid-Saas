@@ -204,6 +204,7 @@ Integrity enforcement:
 |---|---|---|
 | id | uuid | primary key |
 | org_id | uuid | nullable FK, indexed — tenancy; null only for platform-tier actions |
+| branch_id | uuid | nullable FK, indexed — tenancy; null only for platform-tier entries |
 | actor_id | uuid | the Supabase Auth user id of the acting identity (a staff id for tenant roles; a platform identity for operator actions) — server-derived, never client-supplied |
 | action | text | e.g. void_session, update_rate_config, check_in, check_out |
 | target_table | text | affected table |

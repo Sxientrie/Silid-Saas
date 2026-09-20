@@ -112,9 +112,9 @@ displayed as short/over/exact/no-count; closing requires connectivity
 because sealing totals while offline writes are pending would freeze wrong
 numbers (vault-13). The bucketing rule is the subtle part and carries
 forward as normative: money belongs to the shift in which it *reached the
-desk* — room revenue by checkout instant, canteen by sale instant, add-ons
-by posting instant — never to the shift of the cashier who checked the
-guest in. Voided sessions are excluded everywhere. The live summary the
+desk* — room revenue by checkout instant, canteen by sale instant, add-on
+money riding the session's checkout instant — never to the shift of the
+cashier who checked the guest in. Voided sessions are excluded everywhere. The live summary the
 desk sees while the shift runs deliberately mirrors the close-time
 arithmetic so the close never surprises (vault-14).
 

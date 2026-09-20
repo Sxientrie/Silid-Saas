@@ -337,4 +337,39 @@ remediation and verification, the set is ready to build from.
 
 ## Verification round (Step 6 auditor)
 
-PENDING — appended after the verification sub-agent's pass.
+A fresh VERIFICATION sub-agent — with no knowledge of the authoring or
+remediation sessions — audited every RESOLVED finding against the actual
+files, redoing the arithmetic and running consistency sweeps with grep.
+
+**Round 1: 32 PASS / 6 FAIL** (findings 3, 4, 5, 22, 24, 27), plus
+collateral items: two phase prompts ("You build" enumerations) had gone
+stale after their phases gained deliverables (Phase 02 now 14 items,
+Phase 09 now 8); roadmap 08's acceptance input and the gap-analysis §1.5
+still carried the old posting-instant wording; the data-model's audit_log
+had lost its nullable branch_id column during remediation (leaving §5's
+nullability note referencing a column that no longer existed); and the
+Phase 11 "preview wiring landed in Phase 01" claim rested on a Phase 01
+deliverable that the first remediation round had silently failed to
+insert (three Edit-tool applications had been rejected on stale-file
+state and not retried). The 4 DEFERRED findings were verified honest.
+
+**Remediation round 2** fixed all six failures and all collateral items:
+the Phase 01 linter wording and the missing Vercel deliverable (with the
+prompt enumeration and Definition-of-done updated to 1–17), the two
+surviving posting-instant instances, the domain-rules §4 release bullet,
+the roadmap 06 soft-wrap artifact, the two prompt enumerations, and the
+restored audit_log branch_id column.
+
+**Round 2 (re-audit): 9/9 PASS — VERIFIED-READY.** All 38 RESOLVED
+findings now verified against the files; all 4 DEFERRED findings carry
+honest recorded reasons; the terminology sweep, the attribution-rule
+consistency across domain-rules/vault/gap-analysis/roadmap, and the
+arithmetic recomputations all agree.
+
+Process note recorded for honesty: the first remediation pass used a
+byte-oriented stream editor that double-encoded non-ASCII characters in
+the roadmap files (em-dashes corrupted); the corruption was caught by
+inspection, the affected files were restored from git, and the fixes were
+reapplied with UTF-8-safe tooling — the final tree greps clean of
+encoding artifacts.
+

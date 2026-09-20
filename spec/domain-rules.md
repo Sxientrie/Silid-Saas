@@ -182,8 +182,8 @@ Rooms move through exactly four statuses, and only the server moves them:
   derives everything from session timestamps and is therefore idempotent:
   re-running it can never double-apply. Escalation affects status only;
   extension money is sealed exclusively at checkout.
-- `{occupied|grace|overdue} → vacant` at checkout, in the checkout
-  transaction.
+- `{occupied|grace|overdue} → vacant` inside a server transaction that
+  ends the session — checkout, or a void of an active session (§9).
 
 No client path updates room status. (vault-15)
 
