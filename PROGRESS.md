@@ -6,7 +6,7 @@
   "last_updated": "2026-09-21",
   "current_phase": "01",
   "phase_status": { "01": "in_progress" },
-  "last_commit": "8db3dcf",
+  "last_commit": "69fe30a",
   "resume_point": "Phase 01: Deliverables 1-8, 11-16 done; 6/7 acceptance inputs green. Remaining: operator-credential items (supabase link; Sentry wizard; Vercel link+GitHub remote for CI/previews), then the runner review gate closes the phase",
   "open_decisions": 0
 }
@@ -622,3 +622,42 @@ EVIDENCE 8db3dcf /Silid/patches/@stryker-mutator__vitest-runner@10.0.0.patch:1 �
 STATUS: SESSION CLOSED — Phase 01 in_progress; resume at the operator
 credential items (supabase login/link, Sentry wizard, Vercel
 link + GitHub push for CI/previews), then the runner review gate.
+
+### 2026-09-21 — MCP re-verification (operator confirmed the MCP logged in) — results
+
+Re-checked live on operator prompt. Findings:
+
+1. **The Supabase MCP server IS connected and authenticated** in this
+   harness. Verified live: `get_project_url` →
+   `https://tymalzlhygkysdychbpv.supabase.co` (the ref of record);
+   `execute_sql` → PostgreSQL 17.6, database `postgres`;
+   `list_migrations` → 0 (no schema yet — correct for Phase 01); the
+   repo-root `.mcp.json` matches `spec/supabase.md` §3's URL shape with
+   the recorded ref exactly.
+2. **CLI `supabase link` remains operator-gated** — re-attempted →
+   "Access token not provided" (unchanged). Distinction recorded
+   precisely: the MCP's OAuth session and the CLI's SUPABASE_ACCESS_TOKEN
+   are separate credential stores; MCP login does not issue a CLI token.
+   What MCP login DOES provide is the protocol's primary live
+   verification channel (`spec/supabase.md` §2-3) — the production
+   project is now verified reachable and queryable on the record.
+3. **Security advisor finding (pre-existing, not ours)** — 2 WARNs on
+   `public.rls_auto_enable()`: a SECURITY DEFINER function executable by
+   anon/authenticated. Inspection (read-only): it is the standard RLS
+   auto-enable event-trigger helper, paired with the enabled event
+   trigger `ensure_rls` (ddl_command_end) — a hardening mechanism that
+   auto-enables RLS on every new `public` table, i.e. aligned with the
+   spec's own invariant, installed before this build began (0
+   migrations). Exploitability assessment: direct RPC calls fail
+   harmlessly (`pg_event_trigger_ddl_commands()` raises outside event
+   trigger context). Residual checklist concern stands nonetheless
+   (PUBLIC EXECUTE on a definer function in the exposed schema).
+   **Disposition: Phase 02's first generated migration hardens it**
+   (revoke EXECUTE from anon/authenticated or move the helper out of the
+   exposed schema) — Phase 01 produces no schema and must not alter
+   pre-existing production state; the finding is recorded here so the
+   Phase 02 builder and the runner's review gate inherit it.
+
+EVIDENCE bec4aaf /Silid/.mcp.json:1 — the committed MCP config (ref of record, spec/supabase.md §3 shape) whose live server was verified in this session: get_project_url → tymalzlhygkysdychbpv, execute_sql → PostgreSQL 17.6, list_migrations → 0, advisors → 2 WARNs on pre-existing public.rls_auto_enable() (full results in the prose above)
+
+STATUS: MCP verified logged in and live; CLI link unchanged (operator token); advisor finding routed to Phase 02.
