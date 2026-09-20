@@ -1,0 +1,20 @@
+diff --git a/dist/src/vitest-test-runner.js b/dist/src/vitest-test-runner.js
+index 84f1ca026503b8e92b7adc952ec6c6a401943656..3759ec959febdf19d3a4a9c7044e5a908ed2ba6c 100644
+--- a/dist/src/vitest-test-runner.js
++++ b/dist/src/vitest-test-runner.js
+@@ -92,7 +92,14 @@ export class VitestTestRunner {
+             project.config.browser.screenshotFailures = false;
+         });
+         if (this.log.isDebugEnabled()) {
+-            this.log.debug(`vitest final config: ${JSON.stringify(this.ctx.config, null, 2)}`);
++            let dumpedConfig;
++            try {
++                dumpedConfig = JSON.stringify(this.ctx.config, null, 2);
++            } catch {
++                // vitest >= 5 config objects contain circular references
++                dumpedConfig = 'unavailable (circular structure)';
++            }
++            this.log.debug(`vitest final config: ${dumpedConfig}`);
+         }
+     }
+     async dryRun(options) {
