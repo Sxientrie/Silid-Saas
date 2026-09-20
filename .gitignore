@@ -60,3 +60,6 @@ Thumbs.db
 desktop.ini
 Desktop.ini
 *.pem
+
+# Harness MCP config (local-only; spec/supabase.md s3 location)
+/.mcp.json

@@ -686,3 +686,29 @@ STATUS: MCP verified logged in and live; CLI link unchanged (operator token); ad
 EVIDENCE 5798f49 /Silid/.gitignore:1 — cleaned ignore rules, junk untracked
 
 STATUS: DONE — repo is push-ready; spec/, roadmap/, canon/, legacy/ untouched.
+
+### 2026-09-21 — First CI run green (remote pushed) + .mcp.json untracked (operator request)
+
+- Push: `origin` = https://github.com/Sxientrie/Silid-Saas.git, `main`
+  pushed and tracking. Sensitive-file scan before push: clean.
+- **CI Definition-of-done item satisfied**: the push triggered GitHub
+  Actions run 35535994542 and it completed GREEN — rule-lint, lint,
+  typecheck, test (coverage gates), mutation gate (Stryker), build,
+  Playwright E2E, proof-artifact upload all ✓. Non-blocking annotations
+  only (actions' Node 20 deprecation; ubuntu-latest → 26 migration
+  notice). This is the "CI runs lint, typecheck, test (coverage +
+  mutation gates wired), and build on the push" proof.
+- `.mcp.json` untracked and ignored (`/.mcp.json`, root-scoped) on
+  operator request — it is local harness config (spec/supabase.md §3's
+  required location) and contains no secrets (the project ref is an
+  identifier, not a credential; auth is browser OAuth). The file remains
+  on disk so the harness's MCP connection is unaffected. Honest note:
+  the same project ref also appears in spec/deployment-operations.md §2
+  and spec/CHANGELOG.md, which remain committed per the spec's
+  record-the-ref rule — if the operator wants the ref out of the public
+  repo entirely, that is a spec-amendment decision, not a hygiene fix.
+
+EVIDENCE b775068 /Silid/.github/workflows/ci.yml:1 — workflow file proven by GitHub Actions run 35535994542 (all steps green, 2026-09-21)
+EVIDENCE 5798f49 /Silid/.gitignore:1 — ignore rules now include /.mcp.json (untracked in the same commit as this entry)
+
+STATUS: DONE — repo pushed, CI green on first run, MCP config local-only.
