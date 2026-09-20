@@ -541,3 +541,53 @@ EVIDENCE 63ebaef /Silid/pnpm-workspace.yaml:1 — workspace globs exclude legacy
 EVIDENCE 56f7c69 /Silid/packages/db/stryker.conf.json:1 — explicit legacy ignorePatterns in the mutation gate
 
 STATUS: DONE — Deliverable 16 (all gate globs report zero legacy files; proofs above are from live runs).
+
+### 2026-09-21 — CI workflow + Deliverable 9/17/D5 blocked-item status
+
+- **CI workflow** (no generator exists for a project GitHub Actions
+  workflow — hand-written per the official Actions docs, logged):
+  `.github/workflows/ci.yml`, one job running, in order, on every
+  push/PR: rule-lint → lint → typecheck → test (Vitest; coverage gates
+  live inside db/api) → mutation gate (Stryker, break 80%) → build →
+  E2E (Playwright chromium) → proof artifacts uploaded
+  (reports/proof/e2e clips, mutation reports, coverage). RLS policy
+  tests join the test stage in Phase 02 when the schema exists. YAML
+  validated by parse. A hosted run could not be produced: `git remote
+  -v` is empty and no GITHUB_TOKEN exists in this environment — the
+  workflow file is committed and the run is an operator push away
+  (EVIDENCE below; honest limitation, not a claim of a green run).
+- **Deliverable 9 (Sentry wizard) — BLOCKED on operator credentials.**
+  Researched live: `pnpm dlx @sentry/wizard@latest --help` (flags
+  -i/--org/--project/--saas verified current). Attempt:
+  `pnpm dlx @sentry/wizard@latest -i nextjs --saas --disable-telemetry`
+  → `ERR_TTY_INIT_FAILED (EBADF, uv_tty_init)` — the wizard requires a
+  TTY for its auth/project flow and no SENTRY_AUTH_TOKEN exists in this
+  environment. Per the generator-first rule the wizard (not manual SDK
+  config) must produce the Sentry wiring, so nothing was hand-written.
+  Operator step (one command per app, or once with --org/--project):
+  run `pnpm dlx @sentry/wizard@latest -i nextjs` interactively in
+  apps/landing, apps/platform-admin, apps/frontdesk, then commit the
+  generated config.
+- **Deliverable 17 (Vercel linking) — BLOCKED on operator credentials.**
+  Attempt: `pnpm dlx vercel@latest link --yes` → "No existing
+  credentials found. Please run `vercel login` or pass --token". No
+  VERCEL_TOKEN and no git remote exist here. Operator steps: `pnpm dlx
+  vercel login`, then per app (`apps/landing`, `apps/platform-admin`,
+  `apps/frontdesk`) `pnpm dlx vercel link --yes --project silid-<app>`
+  and push the repo to GitHub so per-PR previews deploy. Production
+  linking stays with Phase 11 (per the deliverable).
+- **Deliverable 5 residue (supabase link) — still BLOCKED on operator
+  credentials** (re-verified this session): `pnpm exec supabase link
+  --project-ref tymalzlhygkysdychbpv` → "Access token not provided.
+  Supply an access token by running `supabase login` or setting the
+  SUPABASE_ACCESS_TOKEN environment variable." The recorded operator
+  path in spec/deployment-operations.md §2 stands.
+- None of the three is a client DECISION (no cost commitment beyond
+  spec/deployment-operations.md — Sentry/Vercel/Supabase are the spec's
+  recorded stack); they are credential-gated operator actions, so
+  DECISIONS-NEEDED.md stays empty and the ledger's resume_point carries
+  them.
+
+EVIDENCE b775068 /Silid/.github/workflows/ci.yml:1 — CI pipeline file (lint/typecheck/test+gates/build/e2e on push and PR)
+
+STATUS: DONE for the CI file; BLOCKED (operator) for Deliverables 9, 17, and the Deliverable 5 link residue — exact commands recorded above.
