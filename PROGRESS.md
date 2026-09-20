@@ -160,5 +160,68 @@ EVIDENCE fc3c326 /Silid/packages/config/eslint.config.mjs:1 — config package s
 
 STATUS: DONE — Deliverable 3 (create the shared packages).
 
+### 2026-09-20 — Deliverable 4: shadcn pipeline in apps/frontdesk — DONE
+
+- Generator commands run (syntax from `--help`):
+  `pnpm dlx shadcn@4.21.0 init -c . -y --base radix -p nova --no-monorepo`
+  (the interactive preset prompt was answered non-interactively with the
+  `-p nova` preset — the Lucide/Geist preset, matching the spec's Lucide
+  icon line — on the `radix` base, matching the spec's Radix Primitives
+  line), then `pnpm dlx shadcn@4.21.0 add button -c . -y`.
+- Output committed verbatim: `components.json`, `src/lib/utils.ts`,
+  `src/components/ui/button.tsx`, updated `globals.css`/fonts; the CLI
+  installed its dependencies itself (class-variance-authority ^0.7.1,
+  lucide-react ^1.47.0, radix-ui ^1.6.7, tw-animate-css, cn).
+- Verification: `pnpm --filter @silid/frontdesk build` succeeds after init
+  and add (static prerender green).
+
+EVIDENCE 83714ec /Silid/apps/frontdesk/components.json:1 — shadcn init + add button output committed; frontdesk build green after
+
+STATUS: DONE — Deliverable 4 (run the shadcn CLI).
+
+### 2026-09-20 — Deliverable 5: Supabase project dir + refs — DONE (link pending operator credentials)
+
+- CLI installed as a pinned workspace devDependency:
+  `pnpm add -wD --save-exact supabase@2.117.0` (registry-confirmed latest;
+  `pnpm exec supabase --version` → 2.117.0).
+- Generator command run (flags from `--help`): `pnpm exec supabase init
+  --yes` → created `/Silid/supabase/` (config.toml with project_id
+  "Silid", .gitignore, .temp/), committed alone as generator output.
+- MCP + skill compliance: the official Supabase agent skill available in
+  this harness was read before touching the platform; its security
+  checklist matches `spec/supabase.md` §5 verbatim; the official
+  changelog (`supabase.com/changelog.md`) was fetched and scanned —
+  nothing blocks init/link. One forward note recorded for later phases:
+  new tables stop being auto-exposed to the Data/GraphQL API (enforced on
+  all projects 2026-10-30), so the database phase must explicitly expose
+  and grant tables.
+- Production ref DISCOVERED (never from memory): the harness's Supabase
+  MCP server answered `get_project_url` → `tymalzlhygkysdychbpv`
+  (`https://tymalzlhygkysdychbpv.supabase.co`), and a live `execute_sql`
+  probe confirmed the managed Postgres (PostgreSQL 17.6). Per
+  `spec/supabase.md` §3 the MCP is configured with the ref from
+  `spec/deployment-operations.md` §2 — this is therefore the production
+  ref of record. Recorded in that table, together with the region row's
+  honest state (not queryable via CLI/MCP tooling without operator CLI
+  auth; dashboard verification path written into the row) and the test
+  row ("the local Supabase stack is used" — this spec's allowed option;
+  keeps the cost envelope minimal). Repo-root `.mcp.json` created with
+  the remote MCP URL carrying the same ref (no generator exists for a
+  project-scoped MCP config; the path and shape follow
+  `spec/supabase.md` §3 and the official skill's troubleshooting note).
+- BLOCKED ITEM (user action needed, not a decision): `supabase link`
+  requires CLI auth — `supabase login` refuses non-TTY runs without
+  `--token`/`SUPABASE_ACCESS_TOKEN` (attempted, exact error recorded).
+  Once the operator runs `pnpm exec supabase login` once, the phase's
+  pending check is `pnpm exec supabase link --project-ref
+  tymalzlhygkysdychbpv`. Recorded in `spec/deployment-operations.md` §2.
+- Spec amendments logged in `spec/CHANGELOG.md` in the same commit
+  (deployment-operations §2 fill; tech-stack pnpm 12.4.2 → 12.5.1).
+
+EVIDENCE 44e07d4 /Silid/supabase/config.toml:1 — supabase init output committed (CLI 2.117.0)
+
+STATUS: DONE — Deliverable 5 (run supabase init; refs recorded; `supabase link` pending operator CLI login — the one open item of this phase).
+
+
 
 

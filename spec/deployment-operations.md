@@ -29,9 +29,17 @@ with the ref from this file, never from memory.
 
 | Field | Value |
 |---|---|
-| Production project ref | UNRECORDED-PENDING — recorded in this table at the scaffolding phase when the production project is created and linked |
-| Production region | UNRECORDED-PENDING — recorded alongside the ref (nearest region to the branches; Philippines-serving region chosen at creation) |
-| Test project ref (CI/runbook) | UNRECORDED-PENDING — recorded at the scaffolding phase, or the local stack is used |
+| Production project ref | `tymalzlhygkysdychbpv` — recorded 2026-09-20 in Phase 01. Source: the Supabase MCP server this project is wired to, verified live during scaffolding via the MCP `get_project_url` tool (returns `https://tymalzlhygkysdychbpv.supabase.co`) and a live `execute_sql` query (PostgreSQL 17.6). The repo-root `.mcp.json` carries the same ref in the remote MCP URL. |
+| Production region | Recorded at creation by the operator per this spec's region rule (Philippines-serving nearest region). The region is not queryable through the CLI/MCP tooling available to the Phase 01 builder (CLI login pending operator credentials), so the builder could not independently confirm it — verify in the Supabase dashboard (Project Settings → General) and amend this row if it differs. |
+| Test project ref (CI/runbook) | The local Supabase stack (`supabase start`) is used — recorded decision, Phase 01 (this spec's cost envelope allows "one test project or the local stack"; the local stack keeps the envelope minimal, and CI runners can run the local stack for RLS/money proofs in later phases). |
+
+`supabase link` status: the project directory (`/Silid/supabase`) is the
+`supabase init` output; linking (`supabase login` then `supabase link
+--project-ref tymalzlhygkysdychbpv`) requires operator CLI credentials and
+could not be completed by the Phase 01 builder session (non-interactive
+environment, no `SUPABASE_ACCESS_TOKEN`). Run `pnpm exec supabase login`
+once (or set `SUPABASE_ACCESS_TOKEN`), then `pnpm exec supabase link
+--project-ref tymalzlhygkysdychbpv`.
 
 The scaffolding phase's Definition of done includes filling this table and
 committing it. A downstream phase that finds these fields still

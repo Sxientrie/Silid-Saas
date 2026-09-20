@@ -34,7 +34,7 @@ time — the table prevents drift, it does not license stale installs.
 | Testing Library | 16.x (@testing-library/react 16.x line) | npm registry | 2026-09-20 |
 | Playwright | 1.x (1.63.0); installed via Playwright's own init command | npm registry | 2026-09-20 |
 | StrykerJS | 10.x (10.0.0); configured via Stryker's init command | npm registry `npm view @stryker-mutator/core version` | 2026-09-20 |
-| pnpm | 12.x (12.4.2) | npm registry | 2026-09-20 |
+| pnpm | 12.x (12.5.1) | npm registry | 2026-09-20 |
 | Turborepo | 2.x (2.11.2); monorepo scaffolded via create-turbo | npm registry | 2026-09-20 |
 | Sentry | 10.x (@sentry/nextjs 10.75.0), wired via Sentry's official wizard | npm registry | 2026-09-20 |
 | class-variance-authority | 0.7.x (0.7.1) — installed by the shadcn CLI, never hand-added | npm registry | 2026-09-20 |
