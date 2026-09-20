@@ -7,7 +7,7 @@
   "current_phase": "01",
   "phase_status": { "01": "in_progress" },
   "last_commit": "69fe30a",
-  "resume_point": "Phase 01: Deliverables 1-8, 11-16 done; 6/7 acceptance inputs green. Remaining: operator-credential items (supabase link; Sentry wizard; Vercel link+GitHub remote for CI/previews), then the runner review gate closes the phase",
+  "resume_point": "Phase 01: all 17 deliverables done; acceptance report ALL GREEN 7/7; builder-side complete. Next: runner per-phase review gate (attack battery, tripwire check, fresh reviewer) for formal close",
   "open_decisions": 0
 }
 ```
@@ -788,3 +788,35 @@ STATUS: DONE — Deliverable 9 (Sentry wired via the official wizard; two apps v
 EVIDENCE 72fa22e /Silid/spec/deployment-operations.md:36 — link status recorded as completed; CHANGELOG entry in same commit
 
 STATUS: DONE — Deliverable 5 fully closed (init + refs + link). Phase 01 builder-side complete; D17 (Vercel) and the runner review gate remain.
+
+### 2026-09-21 — Deliverable 17: Vercel linking — DONE (proven with a live pull request)
+
+- Operator logged into Vercel (`vercel login`, device flow). The builder
+  then created and linked the three projects non-interactively
+  (`vercel link --yes --project <name> --non-interactive` per app):
+  silid-landing / silid-platform-admin / silid-frontdesk under the
+  operator's account. `.vercel/` and `.env.local` confirmed gitignored.
+- Monorepo configuration: each project's Root Directory was unset
+  (".") after CLI linking — set via the Vercel API (PATCH /v9/projects
+  with the CLI's stored credential) to apps/<name> per project;
+  verified by `vercel projects inspect`.
+- Git connection initially failed ("Failed to connect") — root cause:
+  the Vercel GitHub App was not installed for Sxientrie/Silid-Saas.
+  The operator installed it (GitHub-side authorization, one browser
+  step), after which all three `vercel git connect` commands succeeded
+  (landing was connected by the operator's dashboard flow during app
+  install).
+- Definition-of-done proof (live): PR #1
+  (github.com/Sxientrie/Silid-Saas/pull/1) produced preview deployments
+  for **all three applications**, all green — Vercel silid-landing ✓,
+  Vercel silid-platform-admin ✓, Vercel silid-frontdesk ✓ — alongside
+  the CI workflow check ✓ (2m22s). PR merged (#1, squash → 5ccded3);
+  merges to main now deploy the production Vercel URLs (custom domains
+  and production env wiring remain Phase 11 per the deliverable).
+- Collateral: the Vercel CLI added `.env.local` entries to the three
+  app `.gitignore`s (committed 063ded3); a docs section on the preview
+  wiring was added to reports/README.md via PR #1.
+
+EVIDENCE 5ccded3 /Silid/reports/README.md:23 — Vercel preview wiring documented; PR #1 checks: 3/3 Vercel preview deployments green + CI green
+
+STATUS: DONE — Deliverable 17. Phase 01 builder-side complete: all 17 deliverables done. Remaining: the runner's per-phase review gate (ledger-git cross-verification, attack battery, tripwire check, fresh review sub-agent) for the formal close.
