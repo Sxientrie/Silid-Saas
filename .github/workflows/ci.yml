@@ -3,8 +3,10 @@ name: CI
 # spec/deployment-operations.md §3 — every push/pull request runs, in
 # order: rule linter → lint → typecheck → test (coverage gates) →
 # mutation gate → build → E2E (video clips archived as proof artifacts).
-# RLS policy tests (supabase db test) join the test stage from Phase 02,
-# when the schema exists (spec/roadmap/02-database-tenancy-money.md).
+# The second job runs the pgTAP RLS/money policy suites on the local
+# Supabase stack (GitHub runners have Docker; the builder host does not —
+# recorded in PROGRESS.md): migrations apply from scratch via db reset,
+# then supabase db test runs supabase/tests/*.sql.
 
 on:
   push:
@@ -63,3 +65,29 @@ jobs:
             reports/proof/mutation/
             coverage/
           if-no-files-found: warn
+
+  rls-policy-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm (packageManager field)
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start the local Supabase stack
+        run: pnpm exec supabase start
+
+      - name: Apply all migrations from scratch
+        run: pnpm exec supabase db reset --local
+
+      - name: Run the pgTAP policy suites
+        run: pnpm exec supabase db test
