@@ -20,7 +20,7 @@ time — the table prevents drift, it does not license stale installs.
 | Radix Primitives | latest 1.x/2.x per component (e.g. react-dialog 1.1.23), installed via the shadcn CLI | npm registry | 2026-09-20 |
 | Lucide React | 1.x (1.47.0) | npm registry | 2026-09-20 |
 | tRPC | 11.x (11.19.0) | npm registry `npm view @trpc/server version` | 2026-09-20 |
-| Drizzle ORM | 0.45.x (0.45.2); drizzle-kit 0.31.x (0.31.10) | npm registry | 2026-09-20 |
+| Drizzle ORM | 0.45.x (0.45.3); drizzle-kit 0.31.x (0.31.11) | npm registry | 2026-09-25 |
 | Zod | 4.x (4.6.5) | npm registry | 2026-09-20 |
 | Zustand | 5.x (5.0.15) | npm registry | 2026-09-20 |
 | TanStack Query | 5.x (5.103.1) | npm registry | 2026-09-20 |

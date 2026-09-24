@@ -27,3 +27,9 @@ file and section, the old rule, the new rule, and the reason (per
   gitignored `supabase/.temp/`) — reason: Deliverable 5 / Definition of
   done requires the project directory linked to the recorded project;
   the operator performed the one browser-interactive step.
+- 2026-09-25 — Phase 02 — `spec/tech-stack.md` version-and-source table —
+  Drizzle ORM parenthetical 0.45.2 → 0.45.3, drizzle-kit 0.31.10 →
+  0.31.11 — reason: re-confirmation at install time via the registry
+  (`pnpm view drizzle-orm version`, `pnpm view drizzle-kit version`);
+  the live source wins under the verify-before-you-trust rule. Same
+  minor lines; installed exactly as confirmed.

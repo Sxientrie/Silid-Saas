@@ -63,3 +63,6 @@ Desktop.ini
 
 # Harness MCP config (local-only; spec/supabase.md s3 location)
 /.mcp.json
+
+# drizzle-kit verification output (never committed; migrations are Supabase-owned)
+.drizzle-kit-tmp/
