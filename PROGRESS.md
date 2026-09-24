@@ -1293,3 +1293,5 @@ spec threshold, the attack battery found 0 breaks, and the ledger-git
 cross-verification resolves 43/43 after one Phase 01 sha correction.**
 
 STATUS: DONE — Phase 02 closed 2026-09-25. Client briefing delivered.
+
+EVIDENCE f5abfd5 /Silid/PROGRESS.md:1295 — the close-out record itself: gate verdict, caveats, and the ledger header flip (phase 02 done)
