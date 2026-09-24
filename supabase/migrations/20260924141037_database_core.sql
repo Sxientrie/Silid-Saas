@@ -150,6 +150,11 @@ create index if not exists audit_log_branch_id_idx on public.audit_log(branch_id
 create index if not exists audit_log_target_idx on public.audit_log(target_table, target_id);
 create unique index if not exists one_active_session_per_room on public.sessions(room_id) where status = 'active';
 create unique index if not exists one_open_shift_per_branch on public.shifts(branch_id) where status = 'open';
+create index if not exists sessions_cashier_id_idx on public.sessions(cashier_id);
+create index if not exists session_addons_cashier_id_idx on public.session_addons(cashier_id);
+create index if not exists canteen_sales_cashier_id_idx on public.canteen_sales(cashier_id);
+create index if not exists shifts_opened_by_idx on public.shifts(opened_by);
+create index if not exists shifts_closed_by_idx on public.shifts(closed_by);
 
 alter table public.organizations enable row level security;
 alter table public.branches enable row level security;

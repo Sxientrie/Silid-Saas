@@ -3,7 +3,7 @@
 
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(27);
 
 insert into public.organizations (id, name)
 values ('11000000-0000-0000-0000-000000000001', 'Append-only org');
@@ -40,10 +40,12 @@ select throws_ok($$
   values ('11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', '51000000-0000-0000-0000-000000000001', 'extension_charge', 1, 150, 150, '31000000-0000-0000-0000-000000000001')
 $$, '23514', 'cashiers cannot post extension-charge rows', 'vault-09: cashier hand-posting extension charge is refused');
 
+-- Client path: the desk guard refuses the double booking before the index is
+-- reached; the index itself is proven separately below on the trusted path.
 select throws_ok($$
   insert into public.sessions (id, org_id, branch_id, room_id, cashier_id, booking_type, pax, checked_in_at, booked_end_at)
   values ('51000000-0000-0000-0000-000000000002', '11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', '41000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000001', 'short_time', 2, now(), now() + interval '3 hours')
-$$, '23505', 'duplicate key value violates unique constraint "one_active_session_per_room"', 'vault-16: second active session on one room is refused');
+$$, '23514', 'room must be vacant in the cashier branch', 'vault-16: second active session on one room is refused');
 
 select throws_ok($$
   insert into public.shifts (id, org_id, branch_id, opened_by)
@@ -57,8 +59,6 @@ select is((select total from public.canteen_sales), 30::numeric, 'vault-08: cant
 
 insert into public.audit_log (org_id, branch_id, actor_id, action, target_table, target_id)
 values ('11000000-0000-0000-0000-000000000001', '99999999-9999-9999-9999-999999999999', '99999999-9999-9999-9999-999999999999', 'forged', 'sessions', '51000000-0000-0000-0000-000000000001');
-select is((select actor_id from public.audit_log), '31000000-0000-0000-0000-000000000001'::uuid, 'vault-17: audit actor comes from claims');
-select is((select branch_id from public.audit_log), '21000000-0000-0000-0000-000000000001'::uuid, 'vault-17: audit branch comes from claims');
 
 select throws_ok($$ update public.session_addons set total = 1 $$, '42501', 'permission denied for table session_addons', 'vault-17: no role can update a session_addons row');
 select throws_ok($$ delete from public.session_addons $$, '42501', 'permission denied for table session_addons', 'vault-17: no role can delete a session_addons row');
@@ -72,8 +72,23 @@ select throws_ok($$ update public.audit_log set action = 'tampered' $$, '42501',
 select throws_ok($$ delete from public.audit_log $$, '42501', 'permission denied for table audit_log', 'vault-17: no audit delete path');
 
 reset role;
+
+-- The partial unique index itself (independent of the desk guard): on the
+-- trusted path the guard trigger does not apply and the index refuses. The
+-- claims GUC is cleared explicitly: it is transaction-local and would
+-- otherwise survive the role reset.
+select set_config('request.jwt.claims', 'null', true);
+select throws_ok($$
+  insert into public.sessions (id, org_id, branch_id, room_id, cashier_id, booking_type, pax, checked_in_at, booked_end_at)
+  values ('51000000-0000-0000-0000-000000000003', '11000000-0000-0000-0000-000000000001', '21000000-0000-0000-0000-000000000001', '41000000-0000-0000-0000-000000000001', '31000000-0000-0000-0000-000000000001', 'short_time', 2, '1900-01-01', '1901-01-01')
+$$, '23505', 'duplicate key value violates unique constraint "one_active_session_per_room"', 'vault-16: the partial unique index refuses a second active session');
+
 select set_config('request.jwt.claims', '{"sub":"31000000-0000-0000-0000-000000000002","role":"authenticated","app_metadata":{"role":"org_admin","org_id":"11000000-0000-0000-0000-000000000001","branch_id":null}}', true);
 set local role authenticated;
+-- Audit review is organization-tier only: the admin reads back the row the
+-- cashier wrote and sees the claim-derived attribution, not the forged values.
+select is((select actor_id from public.audit_log where action = 'forged'), '31000000-0000-0000-0000-000000000001'::uuid, 'vault-17: audit actor comes from claims');
+select is((select branch_id from public.audit_log where action = 'forged'), '21000000-0000-0000-0000-000000000001'::uuid, 'vault-17: audit branch comes from claims');
 select throws_ok($$ update public.session_addons set total = 1 $$, '42501', 'permission denied for table session_addons', 'vault-17: org_admin cannot update a ledger row');
 select throws_ok($$ delete from public.audit_log $$, '42501', 'permission denied for table audit_log', 'vault-17: org_admin cannot delete audit history');
 

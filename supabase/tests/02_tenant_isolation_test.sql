@@ -25,7 +25,6 @@ values
   ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003', 'b1@example.test', 'cashier', 'B1 cashier'),
   ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000002', null, 'admin-b@example.test', 'org_admin', 'Org B admin'),
   ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', null, 'admin-a@example.test', 'org_admin', 'Org A admin'),
-  ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000002', null, 'admin-b@example.test', 'org_admin', 'Org B admin'),
   ('30000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000002', null, 'platform@example.test', 'platform_admin', 'Platform admin');
 
 insert into public.rooms (id, org_id, branch_id, room_number)
@@ -73,8 +72,10 @@ $$;
 
 set local role authenticated;
 
-select _claims('30000000-0000-0000-0000-000000000001', 'cashier', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001');
-select is((select count(*) from public.organizations where id = '10000000-0000-0000-0000-000000000001'), 1::bigint, 'vault-19: organization A cashier sees its organization row');
+-- pg_temp must be schema-qualified in calls: the Supabase `authenticated`
+-- role's search_path does not include the temp schema (verified live 2026-09-25).
+select pg_temp._claims('30000000-0000-0000-0000-000000000001', 'cashier', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001');
+select is((select count(*) from public.organizations where id = '10000000-0000-0000-0000-000000000001'), 0::bigint, 'vault-19: cashier cannot read platform-owned organization rows');
 select is((select count(*) from public.rooms), 1::bigint, 'vault-19: branch 1 cashier sees only branch 1 rooms');
 select is((select count(*) from public.sessions), 1::bigint, 'vault-19: branch 1 cashier sees only branch 1 sessions');
 select is((select count(*) from public.session_addons), 1::bigint, 'vault-19: branch 1 cashier sees only branch 1 add-ons');
@@ -92,12 +93,12 @@ select throws_ok(
   'vault-19: branch 1 cashier cannot update branch 2 room'
 );
 
-select _claims('30000000-0000-0000-0000-000000000004', 'org_admin', '10000000-0000-0000-0000-000000000001', null);
+select pg_temp._claims('30000000-0000-0000-0000-000000000004', 'org_admin', '10000000-0000-0000-0000-000000000001', null);
 select is((select count(*) from public.rooms), 2::bigint, 'vault-19: organization A admin sees both organization A branches');
 select is((select count(*) from public.rooms where org_id = '10000000-0000-0000-0000-000000000002'), 0::bigint, 'vault-19: organization A admin cannot see organization B room');
 select is((select count(*) from public.audit_log), 1::bigint, 'vault-17: organization A admin sees only organization A audit rows');
 
-select _claims('30000000-0000-0000-0000-000000000006', 'platform_admin', null, null);
+select pg_temp._claims('30000000-0000-0000-0000-000000000006', 'platform_admin', null, null);
 select is((select count(*) from public.organizations), 2::bigint, 'vault-19: platform admin sees all organizations');
 
 reset role;

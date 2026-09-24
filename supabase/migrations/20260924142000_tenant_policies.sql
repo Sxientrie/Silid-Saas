@@ -135,7 +135,7 @@ for select to authenticated
 using (
   (select app.is_platform_admin())
   or (select app.is_org_admin() and app.claim_org_id() = org_id)
-  or (select app.is_cashier() and auth.uid() = id)
+  or ((select app.is_cashier()) and (select auth.uid()) = id)
 );
 
 drop policy if exists staff_scoped_insert on public.staff;
@@ -170,7 +170,7 @@ using ((select app.in_branch(org_id, branch_id)));
 drop policy if exists sessions_scoped_insert on public.sessions;
 create policy sessions_scoped_insert on public.sessions
 for insert to authenticated
-with check ((select app.is_cashier() and app.claim_org_id() = org_id and app.claim_branch_id() = branch_id and auth.uid() = cashier_id));
+with check ((select app.is_cashier()) and (select app.claim_org_id()) = org_id and (select app.claim_branch_id()) = branch_id and (select auth.uid()) = cashier_id);
 
 drop policy if exists session_addons_scoped_select on public.session_addons;
 create policy session_addons_scoped_select on public.session_addons
@@ -180,7 +180,7 @@ using ((select app.in_branch(org_id, branch_id)));
 drop policy if exists session_addons_scoped_insert on public.session_addons;
 create policy session_addons_scoped_insert on public.session_addons
 for insert to authenticated
-with check ((select app.is_cashier() and app.claim_org_id() = org_id and app.claim_branch_id() = branch_id and auth.uid() = cashier_id));
+with check ((select app.is_cashier()) and (select app.claim_org_id()) = org_id and (select app.claim_branch_id()) = branch_id and (select auth.uid()) = cashier_id);
 
 drop policy if exists canteen_sales_scoped_select on public.canteen_sales;
 create policy canteen_sales_scoped_select on public.canteen_sales
@@ -190,7 +190,7 @@ using ((select app.in_branch(org_id, branch_id)));
 drop policy if exists canteen_sales_scoped_insert on public.canteen_sales;
 create policy canteen_sales_scoped_insert on public.canteen_sales
 for insert to authenticated
-with check ((select app.is_cashier() and app.claim_org_id() = org_id and app.claim_branch_id() = branch_id and auth.uid() = cashier_id));
+with check ((select app.is_cashier()) and (select app.claim_org_id()) = org_id and (select app.claim_branch_id()) = branch_id and (select auth.uid()) = cashier_id);
 
 drop policy if exists shifts_scoped_select on public.shifts;
 create policy shifts_scoped_select on public.shifts
@@ -200,7 +200,7 @@ using ((select app.in_branch(org_id, branch_id)));
 drop policy if exists shifts_scoped_insert on public.shifts;
 create policy shifts_scoped_insert on public.shifts
 for insert to authenticated
-with check ((select app.is_cashier() and app.claim_org_id() = org_id and app.claim_branch_id() = branch_id and auth.uid() = opened_by));
+with check ((select app.is_cashier()) and (select app.claim_org_id()) = org_id and (select app.claim_branch_id()) = branch_id and (select auth.uid()) = opened_by);
 
 -- Audit: tenant actors can append their own scoped row, but only the platform
 -- and matching organization admins can review. Every role still has no
@@ -214,7 +214,7 @@ drop policy if exists audit_scoped_insert on public.audit_log;
 create policy audit_scoped_insert on public.audit_log
 for insert to authenticated
 with check (
-  auth.uid() = actor_id
+  (select auth.uid()) = actor_id
   and (
     (select app.is_platform_admin())
     or (select app.is_org_admin() and app.claim_org_id() = org_id)
