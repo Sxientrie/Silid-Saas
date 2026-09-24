@@ -4,10 +4,10 @@
 {
   "schema": "silid-progress/2",
   "last_updated": "2026-09-25",
-  "current_phase": "02",
-  "phase_status": { "01": "in_progress", "02": "done" },
-  "last_commit": "a717d1b",
-  "resume_point": "Phase 02 closed: review gate run in-session (recorded sub-agent deviation), 43/43 evidence tags verified, attack battery 23/23 with 0 breaks, mutation gate 92.68% serial, money gate ZERO DRIFT, CI main job green. Next: Phase 03 (auth + platform admin); optional: re-run the isolated attack battery and the Phase 01 gate at the next runner invocation.",
+  "current_phase": "03",
+  "phase_status": { "01": "in_progress", "02": "done", "03": "in_progress" },
+  "last_commit": "f4642c6",
+  "resume_point": "Phase 03 started: session research logged; next Deliverable 1 (Supabase Auth clients + claim readers in packages/auth).",
   "open_decisions": 0
 }
 ```
@@ -1295,3 +1295,113 @@ cross-verification resolves 43/43 after one Phase 01 sha correction.**
 STATUS: DONE — Phase 02 closed 2026-09-25. Client briefing delivered.
 
 EVIDENCE f5abfd5 /Silid/PROGRESS.md:1295 — the close-out record itself: gate verdict, caveats, and the ledger header flip (phase 02 done)
+
+### 2026-09-25 — Phase 03 session start (builder) — research + plan
+
+Fresh builder session, zero prior memory. Read in full, from disk: every
+file in `/Silid/spec/*.md` (17 files: 00-master-goal, CHANGELOG, CRITIQUE,
+applications, authentication, builder-protocol, data-model,
+deployment-operations, domain-rules, legacy-behavior-vault,
+legacy-gap-analysis, monorepo-structure, multi-tenancy, offline-sync,
+project-overview, supabase, tech-stack), `/Silid/roadmap/00-index.md`,
+`/Silid/roadmap/01-scaffolding.md` (Definition of done included),
+`/Silid/roadmap/02-database-tenancy-money.md` in full,
+`/Silid/roadmap/03-auth-platform-admin.md` (this phase), and
+`/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was NOT read and is
+not on any reading list.
+
+**Ledger-git cross-verification (flagged per the verify rule):**
+
+1. DISCREPANCY — ledger header `last_commit: a717d1b` was stale: HEAD is
+   `f4642c6` (the Phase 02 close-out evidence-tag commit `c733a6e` and the
+   mutation-report refresh `f4642c6` landed after the last header refresh —
+   the same recorded pattern from Phases 01/02). `git merge-base
+   --is-ancestor a717d1b HEAD` → true: stale, not corrupted. Header
+   refreshed per the recorded convention (last_commit = most recent commit
+   at the moment of the ledger update). Spot-checked recent EVIDENCE shas
+   (f5abfd5, a717d1b, 8da5b18) — all resolve as commits.
+2. No other ledger/git contradiction found for Phase 03 prerequisites:
+   Phase 02 closed with all 14 deliverables verified; Phase 01 remains
+   in_progress solely on its unrun review gate (recorded caveat), with all
+   17 deliverables done — no Phase 03 prerequisite missing.
+
+**Live environment research (run 2026-09-25):**
+
+- node v24.21.0, pnpm 12.5.1, git 2.55.0.windows.5, supabase CLI
+  2.117.0 (workspace devDependency), working tree clean at f4642c6.
+- **No Docker daemon** (recorded in Phases 01/02; re-confirmed by
+  environment) — the local Supabase stack cannot run on this host. The
+  Phase 02 SUBSTITUTION DECISION is inherited unchanged: DB/auth proofs
+  run against the linked production project `tymalzlhygkysdychbpv`
+  (not live until Phase 12; Phase 02 pushed all migrations to it) via
+  the MCP server; the local-stack CI path stays wired in the workflow.
+- MCP server live and matching the ref of record: `get_project_url` →
+  `https://tymalzlhygkysdychbpv.supabase.co`; `list_migrations` → 8
+  Phase 02 migrations (database_core … rpc_boundaries), matching the
+  repo mirrors in `/Silid/supabase/migrations/` one-for-one.
+- Supabase auth/RLS current state verified by reading the committed
+  migrations: claim helpers (`app.claim_role/claim_org_id/claim_branch_id/
+  is_platform_admin/is_org_admin/is_cashier/in_org/in_branch`) read ONLY
+  `auth.jwt() -> 'app_metadata'`; policies carry TO authenticated plus
+  ownership predicates; ledgers have no UPDATE/DELETE grants or policies;
+  privileged RPCs live in the non-exposed `app` schema with public
+  clock-sealed wrappers.
+- **No tripwire planted in this brief** (operator-pasted prompt, matching
+  the Phase 02 pattern; the registry stays untouched — the runner owns
+  it).
+
+**Spec-vs-prompt discrepancy scan (spec wins; conflicts to be logged):**
+no conflicts found between the phase prompt's restatement and the spec
+set. One clarification recorded (not a conflict): the prompt's `supabase
+db test` phrasing for Deliverable 4 runs through the MCP-equivalent path
+this host (no Docker) per `spec/supabase.md` §6 ("or the MCP equivalent")
+and the Phase 02 operator directive; the committed pgTAP files remain
+runnable via `supabase db test` wherever the local stack exists (CI).
+
+**Planned architecture (non-obvious decisions; logged per
+decide-and-proceed):**
+
+1. **Provisioning and deactivation live in Supabase Edge Functions**
+   (`supabase functions new provision-staff`, `supabase functions new
+   deactivate-staff` — generator-produced scaffolds, hand-written bodies
+   per the sanctioned categories). Rationale: `spec/authentication.md` §5
+   names "an Edge Function or server procedure holding the elevated
+   credentials"; packages/api (tRPC) is a Phase 04 deliverable, so the
+   Edge Function is the trusted server path available in this phase. The
+   functions verify the caller's JWT and role, then use the injected
+   service_role credentials for the admin-API writes (create user with
+   app_metadata claims, insert the staff profile row, revoke sessions).
+   service_role never appears in any client or NEXT_PUBLIC var.
+2. **New migration `claims_profile_binding`** (MCP `apply_migration` +
+   repo mirror, the Phase 02 pattern): tightens the claim helpers so
+   every policy requires the caller's app_metadata claims to MATCH AN
+   ACTIVE STAFF PROFILE ROW (org_admin/cashier: staff row with
+   id=auth.uid(), is_active, matching role/org/branch; platform_admin:
+   null org/branch claims and no staff row). This is what makes a
+   deactivated user's still-valid token stop acting immediately at the
+   database layer (JWT claims stay stale until refresh — the checklist
+   point) and is the seam Deliverable 4's pgTAP tests attack.
+3. **Seeding the first platform_admin**: via the Supabase admin API
+   (the trusted path) with the service_role key obtained through the
+   operator-authenticated CLI (`supabase projects api-keys` — syntax via
+   --help at use time); the key stays in local gitignored env only. The
+   publishable key for the app comes from the MCP `get_publishable_keys`.
+4. **Platform Admin v1 UI** stays within the create-next-app skeleton:
+   shadcn CLI run in apps/platform-admin (Phase 01 only proved it in
+   frontdesk) for the components the screens need; @supabase/ssr for
+   session handling; middleware route guard (Layer 2) redirects
+   unauthenticated sessions to /signin and refuses non-platform_admin
+   roles; server actions resolve scope from claims (Layer 1); RLS stays
+   the boundary (Layer 3).
+5. **E2E honesty**: the operator-flow E2E runs the real UI against the
+   linked project (the recorded substitution); the org-admin isolation
+   assertions run through the browser path (PostgREST calls with the
+   provisioned admin's token) plus the pgTAP database-path proof; specs
+   that need live credentials skip cleanly when the env is absent so CI
+   (no secrets) stays green, and the limitation is recorded.
+6. No guest-billing work, no Landing changes, no Frontdesk feature work,
+   no new roles, no platform-billing surface — scope exactly
+   spec/applications.md §1.
+
+STATUS: IN PROGRESS — Phase 03 session started; research logged;
+proceeding to Deliverable 1 (packages/auth).
