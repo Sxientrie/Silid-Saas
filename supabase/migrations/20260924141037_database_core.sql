@@ -10,8 +10,19 @@ revoke all on schema app from public, anon, authenticated;
 grant usage on schema app to authenticated;
 
 -- Harden the platform's RLS auto-enable helper inherited from the empty
--- project. The event trigger continues to invoke it as its owner.
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+-- project. The event trigger continues to invoke it as its owner. The helper
+-- exists only on the hosted platform — the local stack ships without it — so
+-- the revoke is conditional and a from-scratch local replay does not fail.
+do $$
+begin
+  if exists (
+    select 1 from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.proname = 'rls_auto_enable'
+  ) then
+    revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end $$;
 
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),

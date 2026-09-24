@@ -104,8 +104,13 @@ select 'rate_config default seeds the §1 rate card',
                             and attname='rate_config'));
 
 insert into _r
-select 'rls_auto_enable not executable by authenticated',
-       not has_function_privilege('authenticated',
+select 'rls_auto_enable not executable by authenticated (or absent on a clean stack)',
+       not exists (
+         select 1 from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'public' and p.proname = 'rls_auto_enable'
+       )
+       or not has_function_privilege('authenticated',
              'public.rls_auto_enable()', 'EXECUTE');
 
 do $$
