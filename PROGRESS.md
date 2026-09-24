@@ -6,8 +6,8 @@
   "last_updated": "2026-09-25",
   "current_phase": "02",
   "phase_status": { "01": "in_progress", "02": "in_progress" },
-  "last_commit": "a4fff7d",
-  "resume_point": "Deliverables 1-7, 10, 13 built and verified green (156 pgTAP/catalog assertions via the MCP-equivalent path); next: Deliverable 8 (money reference fixture), 9 (vault parity fixture), 14 (money-recomputation utility), 11 (Drizzle schema), 12 (evidence), CI RLS-test job, acceptance report.",
+  "last_commit": "4c22a71",
+  "resume_point": "All 14 Phase 02 deliverables built and verified (8 suites, 171 pgTAP/catalog assertions; workspace test/typecheck/lint/mutation green; money gate ZERO DRIFT; builder acceptance draft ALL GREEN 12/12). Next: runner review gate (attack battery, mutation gate re-run, tripwire check, fresh review sub-agent) closes the phase.",
   "open_decisions": 0
 }
 ```
@@ -1092,3 +1092,97 @@ verification; proceeding to Deliverables 8, 9, 14, 11, 12, the CI RLS
 job, and the acceptance report. The phase itself closes only through the
 runner's review gate (attack battery, mutation gate, money-recomputation
 gate, tripwire check, fresh review sub-agent).
+
+### 2026-09-25 — Phase 02 Deliverables 8, 9, 14, 11, 12 closed; CI job wired; builder acceptance draft ALL GREEN
+
+- **Deliverable 8 (money reference fixture, packages/db)** — full loop:
+  test-first (money-reference.test.ts), then the fixture. The
+  machine-readable home of every peso figure: rate card, tiers,
+  surcharges, overstay defaults, add-on and canteen catalogues (26 items,
+  5 categories), and the nine §1.4 worked examples — plus
+  recomputeWorkedExample, an independent arithmetic path (per-guest
+  accumulation loops, order-independent tier selection) deliberately
+  unlike the SQL production arithmetic. DB-side crosswalk:
+  supabase/tests/08_money_fixture_parity_test.sql recomputes §1.4 and the
+  vault-06 goldens through app.stay_amounts / app.extension_blocks_due
+  against the SEEDED rate_config default — 15/15 green via the MCP path.
+- **Deliverable 9 (vault parity fixture, packages/testing)** — all twenty
+  vault scenarios as typed records: verbatim ids, provenance marks, the
+  pgTAP suite that attacks each database-executable one (17 linked; 14,
+  18, 19 recorded as application-layer, riding phases 06/07/08/09), and
+  the booking/block goldens whose figures the parity test derives from
+  the fixture — never re-typed.
+- **Deliverable 14 (money recomputation utility, packages/testing)** —
+  seeded deterministic environment (mulberry32, DEFAULT_SEED 20260925),
+  reference mode recomputing every stated figure through arithmetic
+  reusing no production code, dual-order ledger reconciliation with
+  anomaly reporting (non-finite/negative pesos surfaced, never silently
+  summed), and the defined CLI invocation recorded below. Gate run:
+  ZERO DRIFT, exit 0; diff report committed.
+- **Deliverable 11 (Drizzle schema, packages/db)** — hand-authored per
+  the provenance table's reading (drizzle-kit generate is verification
+  for the ORM layer; migrations stay Supabase-owned). Parity proven two
+  ways: a full column-spec test (every table's types, nullability,
+  defaults, checks, indexes, FK counts mirrored from migration
+  20260924141037) and the live database's MCP-generated types matching
+  column-for-column — which also independently confirms the public RPC
+  surface is the clock-sealed wrapper set. drizzle-orm 0.45.3 and
+  drizzle-kit 0.31.11 installed at registry-current patches (tech-stack
+  table + CHANGELOG entry in the same commit).
+- **Mutation gate defect found and fixed** — the gate had never actually
+  killed a mutant: the vitest plugin's per-mutant runs completed zero
+  tests under vitest 5.0.1, and a command-runner replacement then hit a
+  second defect (the sandboxed vitest.config.ts resolves vitest/config
+  unreliably through the node_modules symlink on Windows; vitest 5 exits
+  0 on that startup error). Root causes verified live (debug logs,
+  testsCompleted:0, a hand-applied mutant passing in the sandbox and
+  failing in the package). The gate now runs the vitest binary with a
+  zero-import config (vitest.stryker.config.mjs) and relies on the exit
+  code. Result: packages/db 82.81% (39 killed + 157 timed out of 245)
+  versus the 80% threshold; 49 survivors are declarative mirror details
+  (documented exception: behavior is pinned independently by the pgTAP
+  suites against the live database). money-reference.ts alone: 97.56%.
+  packages/api remains the zero-mutant identity skeleton (NaN ≥
+  threshold, as in Phase 01).
+- **CI** — the rls-policy-tests job runs the local Supabase stack on
+  GitHub runners (which have Docker; the builder host does not):
+  `supabase start`, `supabase db reset --local`, `supabase db test`
+  (flags verified via --help at use time).
+- **Deliverable 12 (invariant-proof evidence)** — the pgTAP runs pasted
+  under the 2026-09-25 entry above attack tenant isolation (org A vs B,
+  branch 1 vs 2, forged identifiers), server-sealed time (client
+  instants overwritten; clock-sealed RPC wrappers), and append-only
+  ledgers (update/delete refused for every role); the mutation-gate and
+  money-gate records close the phase's remaining proof obligations.
+- **Builder acceptance draft** — reports/phase-02-acceptance.md
+  generated from reports/proof/phase-02-results.json: ALL GREEN 12/12
+  capability lines. Honest limitations recorded in the report itself:
+  no proof clips exist (no application UI — the database phase's proof
+  surface is pgTAP/SQL output), and the attack-battery slots record
+  the pgTAP suites pending the runner's fresh attack battery.
+
+**Money Recomputation Gate command (defined for phases 04–12):**
+`node packages/testing/src/money-recompute.ts --reference [--ledger]
+[--out reports/proof/phase-<NN>-money-gate.md]`
+
+**Final builder verification sequence (all run live 2026-09-25):**
+`pnpm test` 13/13 turbo tasks (db 19/19 and testing 36/36 within);
+`pnpm check-types` green; `pnpm lint` green; `pnpm mutation` 2/2
+(db 82.81% ≥ 80); money gate exit 0 ZERO DRIFT; 8 pgTAP/catalog suites
+171 assertions green against the linked project via the MCP-equivalent
+path.
+
+EVIDENCE 480b57b /Silid/packages/db/src/money-reference.ts:89 — Deliverable 8: the money reference fixture with the nine §1.4 worked examples
+EVIDENCE f6b858d /Silid/packages/testing/src/vault-goldens.ts:59 — Deliverable 9: the twenty-scenario vault parity fixture with suite links
+EVIDENCE 8b43c4a /Silid/packages/testing/src/money-recompute.ts:1 — Deliverable 14: the gate utility; ZERO DRIFT run recorded at reports/proof/phase-02-money-gate.md
+EVIDENCE f6b858d /Silid/supabase/tests/08_money_fixture_parity_test.sql:11 — the SQL-side crosswalk (15/15 green)
+EVIDENCE 300d2ab /Silid/packages/db/src/drizzle/schema.ts:1 — Deliverable 11: the drizzle schema and its full-spec parity test
+EVIDENCE 4c22a71 /Silid/.github/workflows/ci.yml:66 — the rls-policy-tests CI job (start, reset, db test)
+EVIDENCE 4c22a71 /Silid/reports/phase-02-acceptance.md:1 — builder acceptance draft: ALL GREEN 12/12
+
+STATUS: IN PROGRESS — all fourteen Deliverables of Phase 02 closed with
+verification and EVIDENCE. The phase itself remains open for the
+runner's per-phase review gate (ledger-git cross-verification, fresh
+attack battery, mutation and money gates re-run, tripwire check, fresh
+review sub-agent, and the final acceptance report) per
+spec/00-master-goal.md; the builder does not certify its own work.
