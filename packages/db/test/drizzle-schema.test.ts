@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getTableName } from "drizzle-orm";
 import { getTableConfig, type PgTable } from "drizzle-orm/pg-core";
 import * as schema from "../src/drizzle/schema.js";
 
@@ -145,6 +146,45 @@ const FK_COUNTS: Record<string, number> = {
   audit_log: 2,
 };
 
+/** FK targets per table, from the migrations (sorted table names). */
+const FK_TARGETS: Record<string, string[]> = {
+  organizations: [],
+  branches: ["organizations"],
+  staff: ["branches", "organizations"],
+  rooms: ["branches", "organizations"],
+  sessions: ["branches", "organizations", "rooms", "staff"],
+  session_addons: ["branches", "organizations", "sessions", "staff"],
+  canteen_sales: ["branches", "organizations", "sessions", "staff"],
+  shifts: ["branches", "organizations", "staff", "staff"],
+  audit_log: ["branches", "organizations"],
+};
+
+/** The exact default values the migrations seed, asserted verbatim. */
+const DEFAULT_VALUES: Array<[string, string, string]> = [
+  ["organizations", "status", "active"],
+  ["organizations", "plan_status", "reserved"],
+  ["staff", "is_active", "true"],
+  ["rooms", "status", "vacant"],
+  ["sessions", "status", "active"],
+  ["sessions", "base_rate", "0"],
+  ["sessions", "surcharges", "0"],
+  ["sessions", "total", "0"],
+  ["shifts", "status", "open"],
+  ["shifts", "expected_room", "0"],
+  ["shifts", "expected_addons", "0"],
+  ["shifts", "expected_canteen", "0"],
+  ["shifts", "expected_total", "0"],
+];
+
+const PG_COLUMN_TYPES: Record<string, string> = {
+  PgUUID: "uuid",
+  PgText: "text",
+  PgInteger: "integer",
+  PgNumeric: "numeric",
+  PgBoolean: "boolean",
+  PgJsonb: "jsonb",
+  PgTimestamp: "timestamp with time zone",
+};
 function tableByName(name: string): PgTable {
   const entry = tableEntries.find(([, table]) => getTableConfig(table).name === name);
   if (entry === undefined) {
@@ -232,6 +272,36 @@ describe("drizzle schema mirrors the supabase migrations (Deliverable 11)", () =
     }
   });
 
+  it("carries every column's exact SQL type (timestamptz, numeric, …) from the migrations", () => {
+    for (const [tableName, spec] of Object.entries(COLUMN_SPECS)) {
+      const config = getTableConfig(tableByName(tableName));
+      for (const [columnName, expected] of Object.entries(spec)) {
+        const column = config.columns.find((column) => column.name === columnName);
+        expect(column?.getSQLType(), tableName + "." + columnName + " sql type").toBe(
+          PG_COLUMN_TYPES[expected.type],
+        );
+      }
+    }
+  });
+
+  it("defaults carry the migration's exact seed values", () => {
+    for (const [tableName, columnName, expected] of DEFAULT_VALUES) {
+      const column = getTableConfig(tableByName(tableName)).columns.find(
+        (column) => column.name === columnName,
+      );
+      expect(String(column?.default), tableName + "." + columnName + " default").toBe(expected);
+    }
+  });
+
+  it("targets every foreign key exactly as the migrations declare", () => {
+    for (const [tableName, targets] of Object.entries(FK_TARGETS)) {
+      const foreignKeys = getTableConfig(tableByName(tableName)).foreignKeys;
+      const actual = foreignKeys
+        .map((fk) => getTableName(fk.reference().foreignTable))
+        .sort();
+      expect(actual, tableName + " foreign key targets").toEqual([...targets].sort());
+    }
+  });
   it("models the two double-booking and double-shift guards as partial unique indexes", () => {
     const sessions = getTableConfig(tableByName("sessions"));
     const shifts = getTableConfig(tableByName("shifts"));

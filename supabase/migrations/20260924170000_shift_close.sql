@@ -32,6 +32,7 @@ declare shift_row public.shifts%rowtype; old_row jsonb; close_instant timestampt
 begin
   requested_count := counted_total;
   if auth.uid() is null then raise exception using errcode = '42501', message = 'authentication required'; end if;
+  if requested_count is not null and requested_count < 0 then raise exception using errcode = '22023', message = 'counted_total must be zero or positive'; end if;
   select * into shift_row from public.shifts where id = row_shift_id for update;
   if not found then raise exception using errcode = 'P0002', message = 'shift not found'; end if;
   if not ((app.is_cashier() and app.claim_org_id() = shift_row.org_id and app.claim_branch_id() = shift_row.branch_id) or (app.is_org_admin() and app.claim_org_id() = shift_row.org_id)) then
