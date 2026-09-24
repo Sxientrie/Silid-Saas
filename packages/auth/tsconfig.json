@@ -1,5 +1,8 @@
 {
   "extends": "@silid/config/react-library.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

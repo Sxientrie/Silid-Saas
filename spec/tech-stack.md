@@ -24,7 +24,7 @@ time — the table prevents drift, it does not license stale installs.
 | Zod | 4.x (4.6.5) | npm registry | 2026-09-20 |
 | Zustand | 5.x (5.0.15) | npm registry | 2026-09-20 |
 | TanStack Query | 5.x (5.103.1) | npm registry | 2026-09-20 |
-| Supabase JS client | 2.x (2.116.0) | npm registry | 2026-09-20 |
+| Supabase JS client | 2.x (2.117.1) | npm registry | 2026-09-25 |
 | Supabase SSR helpers | 0.12.x (0.12.7) | npm registry | 2026-09-20 |
 | Supabase CLI | 2.x (2.117.0); command syntax always discovered via `--help` at use time | npm registry; `spec/supabase.md` | 2026-09-20 |
 | pgTAP | the extension bundled with the Supabase CLI's local stack; run via `supabase db test` — no standalone version pin | `spec/supabase.md` §6; Supabase docs | 2026-09-20 |

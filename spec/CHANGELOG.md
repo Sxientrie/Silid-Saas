@@ -33,3 +33,9 @@ file and section, the old rule, the new rule, and the reason (per
   (`pnpm view drizzle-orm version`, `pnpm view drizzle-kit version`);
   the live source wins under the verify-before-you-trust rule. Same
   minor lines; installed exactly as confirmed.
+- 2026-09-25 — Phase 03 — `spec/tech-stack.md` version-and-source table —
+  Supabase JS client parenthetical 2.116.0 → 2.117.1 — reason:
+  re-confirmation at install time via the registry (`pnpm view
+  @supabase/supabase-js version`); the live source wins under the
+  verify-before-you-trust rule. Same minor line; installed exactly as
+  confirmed (@supabase/ssr 0.12.7 and zod 4.6.5 re-confirmed unchanged).
