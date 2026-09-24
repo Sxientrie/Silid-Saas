@@ -1405,3 +1405,54 @@ decide-and-proceed):**
 
 STATUS: IN PROGRESS — Phase 03 session started; research logged;
 proceeding to Deliverable 1 (packages/auth).
+
+### 2026-09-25 — Deliverable 1: Supabase Auth clients + claim readers (packages/auth) — DONE
+
+- Research (verify-before-you-trust, sources logged): the official Supabase
+  agent skill was loaded in this harness (its checklist matches
+  spec/supabase.md §5 verbatim); the official changelog
+  (supabase.com/changelog.md) was fetched and scanned — no breaking change
+  touches auth/ssr/edge functions for this phase (supabase-js drops TS
+  <5.0 in 2027 and Node 20 in 2026-06-30 — neither binds this build);
+  the SSR "Creating a client" doc (supabase.com/docs/guides/auth/server-side
+  /creating-a-client, fetched live via the MCP docs tool) pins the current
+  API: createBrowserClient/createServerClient with the getAll/setAll
+  cookie adapter, **`supabase.auth.getClaims()` for server-side guards
+  (validates the JWT signature — getSession() is not safe for server
+  guarding)**, and **Next.js 16's route-guard file convention is the
+  Proxy (`proxy.ts`, `proxy(request)` export) — the renamed middleware**.
+  Registry re-confirmation: @supabase/supabase-js 2.117.1 (one patch
+  ahead of the spec table's 2.116.0 — live source wins; tech-stack table
+  + CHANGELOG amended in the same commit), @supabase/ssr 0.12.7 and zod
+  4.6.5 unchanged. zod 4.6.5's `z.uuid()` top-level API confirmed from
+  the installed types (`z.string().uuid()` is deprecated).
+- Generator check: no generator exists for package internals (bespoke
+  workspace package, the sanctioned hand-written categories: domain logic
+  + Zod schemas); dependencies installed with
+  `pnpm --filter @silid/auth add -E @supabase/supabase-js@2.117.1
+  @supabase/ssr@0.12.7 zod@4.6.5` (+ `@types/node` dev).
+- Test-first: `packages/auth/test/claims.test.ts` written FIRST (13
+  tests, red), then implemented to green. Coverage: the three ROLES BY
+  TIER identifiers verbatim; per-role claim-shape acceptance (cashier
+  carries both ids, org_admin null branch, platform_admin null both);
+  absent-key normalization to null; rejection of unknown roles, missing
+  role, cross-role scope violations, non-uuid scope; **the forged
+  user_metadata role is ignored — claims read app_metadata only**;
+  parse/read duality; session/user carrier readers.
+- Implementation: `src/claims.ts` (zod schema + per-role superRefine +
+  read/parse + carrier readers + role predicates), `src/env.ts`
+  (NEXT_PUBLIC_SUPABASE_URL + NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY with
+  the legacy anon var as fallback — publishable keys preferred per the
+  checklist), `src/client.ts` (createSilidBrowserClient),
+  `src/server.ts` (createSilidServerClient over a CookieAdapter the app
+  supplies from next/headers or the proxy), `src/index.ts` re-exports.
+  No session/refresh logic of our own anywhere.
+- Verify: `pnpm --filter @silid/auth test` → 14/14 (with the smoke test);
+  `check-types` green after pinning `"types": ["node"]` in the package
+  tsconfig (the recorded TS 7 pattern from packages/testing);
+  `eslint --max-warnings 0` clean.
+
+EVIDENCE 7955a22 /Silid/packages/auth/src/claims.ts:1 — claim readers typed from app_metadata with per-role validation; user_metadata never read
+EVIDENCE 7955a22 /Silid/packages/auth/test/claims.test.ts:1 — 13 claim-reader tests incl. the forged-user_metadata rejection
+
+STATUS: DONE — Deliverable 1 (wire Supabase Auth clients + claim readers).
