@@ -1456,3 +1456,82 @@ EVIDENCE 7955a22 /Silid/packages/auth/src/claims.ts:1 — claim readers typed fr
 EVIDENCE 7955a22 /Silid/packages/auth/test/claims.test.ts:1 — 13 claim-reader tests incl. the forged-user_metadata rejection
 
 STATUS: DONE — Deliverable 1 (wire Supabase Auth clients + claim readers).
+
+### 2026-09-25 — Deliverable 2: provisioning path (Edge Function + grants + integration proofs) — DONE
+
+- Research (sources logged): `supabase functions new/deploy --help` at use
+  time (CLI 2.117.0); the generator scaffold now emits the **@supabase/server
+  SDK** (`withSupabase`, ctx.supabase/ctx.supabaseAdmin/ctx.userClaims,
+  per-function deno.json import map + config.toml entry). SDK docs fetched
+  live (github.com/supabase/server README): its `auth: 'user'` mode validates
+  JWTs **via JWKS and does not support legacy HS256 JWTs**; live check via
+  MCP confirmed this project has no signing-keys table (auth schema) — user
+  JWTs are legacy HS256. DECISION (logged): keep the generated wrapper but
+  `auth: ["publishable","secret"]` + explicit caller-JWT validation via
+  `supabaseAdmin.auth.getUser(token)` (server-side GoTrue validation, works
+  for both signing schemes); verify_jwt stays false as generated. Admin API
+  signatures (admin.createUser attributes, admin.signOut(jwt, scope))
+  verified from the installed @supabase/auth-js 2.117.1 types on disk.
+- Generator command (logged): `pnpm exec supabase functions new
+  provision-staff` — output committed verbatim (365e7ad) BEFORE
+  customization; deploy via `pnpm exec supabase functions deploy
+  provision-staff --use-api` (the --use-api flag bundles server-side: no
+  Docker on this host).
+- Function behavior (supabase/functions/provision-staff/index.ts):
+  caller JWT validated with Auth → caller role resolved from its CURRENT
+  auth record (admin API), not the possibly-stale JWT → authorization
+  matrix (platform_admin → org_admin for any org; org_admin →
+  org_admin/cashier within claim org only) enforced BEFORE shape checks →
+  org/branch existence checks → `admin.createUser` with the §2 claim set
+  → staff profile row insert (rollback-deletes the user if the insert
+  fails) → audit row (platform-tier acts carry null org/branch, §5
+  multi-tenancy). Nothing sensitive returned.
+- TWO grant gaps found by the integration tests (Improve step; both
+  migrated via MCP apply_migration + repo mirror):
+  1. `grant_org_management_access` — Phase 02 authored the RLS policies
+     for organizations/branches/staff but the Data API privileges for
+     authenticated were missing (new tables no longer auto-exposed; the
+     Phase 02 revocation stripped defaults). The first test run failed
+     with 42501 "permission denied for table organizations".
+  2. `restore_service_role_grants` — the same revocation stripped
+     service_role itself; every trusted server path (the function's
+     service client) needs the standard full-DML service-role posture.
+     Symptom: the function's org lookup returned 404.
+- Test-first note (honest): the integration suite was authored after the
+  function deployed — the system under test is the deployed function, so
+  red/green here is deploy→run→fix (two Improve cycles: authorization
+  ordering before shape checks; app_metadata assertion normalized for
+  GoTrue's omit-null-key storage). The claim-reader unit tests (D1)
+  followed strict test-first.
+- Email rate limit constraint (logged): the project's auth has Confirm
+  email enabled with the default rate-limited sender, so a client
+  `signUp`-based self-claim test is not reliably runnable (auth error
+  "email rate limit exceeded"). The claims-never-client-set proof is
+  instead carried by two deterministic tests: a provisioned user's
+  `auth.updateUser` tamper attempt lands in user_metadata only and the
+  app_metadata claims stay unchanged (and the elevation is worthless —
+  the org tier sees only its own org), and the function ignores
+  app_metadata supplied in the request body. Operator note: disabling
+  Confirm email (mailer_autoconfirm) for this dev project would re-enable
+  a client-signup assertion; parked for the operator dashboard, not
+  blocking.
+- Seeding: `packages/auth/src/seed-platform-admin.ts` (idempotent;
+  `node --env-file=.env.local packages/auth/src/seed-platform-admin.ts`)
+  created the operator identity cfde8e29-d030-4941-8f00-a14c311f52a2
+  (operator@silid.local) with claims {role: platform_admin, org_id: null,
+  branch_id: null} through the admin API — the trusted path; service
+  credentials live only in gitignored local env (.env.local verified
+  gitignored). Key retrieval via `supabase projects api-keys --project-ref
+  tymalzlhygkysdychbpv --reveal` (CLI authenticated from Phase 01's
+  operator login).
+- Verify: `pnpm --filter @silid/auth test` → **20/20 green** (13 claim
+  readers + 1 smoke + 6 integration against the deployed function);
+  workspace `pnpm check-types` and `pnpm lint` green.
+
+EVIDENCE d275524 /Silid/supabase/functions/provision-staff/index.ts:1 — the provisioning function: trusted path, claims matrix, audit
+EVIDENCE d275524 /Silid/packages/auth/test/integration.provisioning.test.ts:1 — six integration proofs incl. cross-tenant refusal and client claim-setting refusal
+EVIDENCE d275524 /Silid/supabase/migrations/20260924232319_grant_org_management.sql:1 — authenticated grants for the org-management access model
+EVIDENCE d275524 /Silid/supabase/migrations/20260925091000_restore_service_role_grants.sql:1 — service-role posture restored for trusted paths
+
+STATUS: DONE — Deliverable 2 (provisioning function; claims + profile rows
+only through the trusted server path).
