@@ -3,11 +3,11 @@
 ```json
 {
   "schema": "silid-progress/2",
-  "last_updated": "2026-09-24",
+  "last_updated": "2026-09-25",
   "current_phase": "02",
   "phase_status": { "01": "in_progress", "02": "in_progress" },
-  "last_commit": "79f4e9d",
-  "resume_point": "Phase 02 session start: research complete, plan logged. Next: Deliverable 1 (migration new + schema). Phase 01 remains in_progress pending the runner review gate (runner-owned, not builder work).",
+  "last_commit": "a4fff7d",
+  "resume_point": "Deliverables 1-7, 10, 13 built and verified green (156 pgTAP/catalog assertions via the MCP-equivalent path); next: Deliverable 8 (money reference fixture), 9 (vault parity fixture), 14 (money-recomputation utility), 11 (Drizzle schema), 12 (evidence), CI RLS-test job, acceptance report.",
   "open_decisions": 0
 }
 ```
@@ -988,3 +988,107 @@ proceeding to Deliverable 1.
 
 STATUS: NOTED — directive recorded; proceeding with Deliverable 1 under
 MCP-only operation.
+
+### 2026-09-25 — Phase 02 resume: concurrent-builder incident, takeover, Deliverables 1–7/10/13 verified green
+
+**Ledger-git cross-verification (flagged per the verify rule):**
+
+1. DISCREPANCY — the ledger header said `last_commit: 79f4e9d` /
+   resume_point "Next: Deliverable 1", but HEAD was `e20e7d0` with
+   Deliverables 1–3 (core schema, RLS policies, seals/guards) committed and
+   Deliverables 5–7 work uncommitted on disk. `git merge-base --is-ancestor`
+   confirms 79f4e9d is an ancestor — the ledger was stale, not corrupted:
+   the prior builder session skipped its Remember step again (same pattern
+   as Phase 01's D6). State was reconstructed from git + `list_migrations`.
+
+**CONCURRENT-BUILDER INCIDENT (logged for the review gate):** a second,
+rogue builder agent (an `opencode serve` background process, PID 7344,
+surviving its dead parent) was actively writing to this repo and applying
+migrations to the linked project from ~22:07 to 00:08 local. Detected via
+file mtimes moving mid-session; confirmed with the operator; the operator
+killed the process (~00:15); takeover proceeded only after ≥10 minutes of
+write silence. No conflicting writes occurred after takeover; the rogue
+session's last applied migration (`rpc_boundaries`) and repo mirrors were
+reconciled rather than redone.
+
+**Review findings on the inherited work (Improve step, all fixed):**
+
+- MONEY BUG (₱-class): `app.stay_amounts` read the overnight tier key at
+  the wrong jsonb level (`cfg ->> tier_key` — a key that exists only under
+  `cfg -> 'tiers'`), so EVERY overnight checkout sealed base ₱1,100
+  (the coalesce default) regardless of pax — a 5-guest overnight would
+  undercharge ₱600 vs vault-03. Fixed in mirror + live:
+  `cfg -> 'tiers' ->> tier_key` (commit 319b6ad). Post-fix arithmetic
+  re-verified: 5-pax overnight 1700+300, 3-pax 1400, 1-pax 1100 (lowest
+  tier per vault-03), short-time 5-pax 450+600=1050.
+- `record_shift_count` parameter/column ambiguity fixed by the prior
+  session in-file after apply; converged live via execute_sql (the mirror
+  is canonical).
+- Live-vs-mirror drift noted (cosmetic): the live `branches.rate_config`
+  column default carries some values as JSON numbers where the mirror
+  seeds strings; all readers extract via `->>` text, both forms behave
+  identically, the mirror is canonical for fresh replays.
+- pgTAP suite corrections (commit d80b2ad): duplicate staff fixture
+  (test 02); audit-row read-backs moved to the org-tier reviewer — the
+  cashier cannot review audit by design (tests 02/03/04); test 03 gains a
+  trusted-path proof of the one-active-session partial unique index
+  alongside the client-path desk-guard refusal; test 04's
+  61-minutes-past-grace instant was actually 61 minutes BEFORE booked_end
+  (checkout instant corrected); scalar RPC results selected directly (the
+  functions return numeric/text, not rows); `lives_ok` counts toward
+  plan(13) (test 06); the transaction-local claims GUC is cleared before
+  trusted-path fixtures (tests 03/07) and pg_temp helpers are
+  schema-qualified (the `authenticated` role's search_path excludes the
+  temp schema — verified live).
+- Performance advisors: 6 policies re-evaluated auth.uid() per row — all
+  claim reads now wrapped in uncorrelated `(select ...)` init-plans; the
+  five attribution FKs indexed (commit d80b2ad). Advisors re-run:
+  security clean; performance reduced to `unused_index` INFOs (expected
+  on an empty database; the tenancy indexes are spec-required).
+
+**Verification (all run live against the linked project via the MCP
+`execute_sql` path, `spec/supabase.md` §6):**
+
+- 01 schema structural: 68/68 assertions green.
+- 02 tenant isolation (pgTAP): 14/14 green — org A cashier sees zero org B
+  rows; branch-1 cashier sees zero branch-2 rows; explicit cross-tenant
+  ids invisible; cashier cannot update branch-2 rooms (42501); platform
+  sees all; cashiers do not review audit.
+- 03 ledger append-only + sealed time (pgTAP): 27/27 green — client
+  check-in/booked_end instants replaced server-side; no role updates or
+  deletes any ledger or audit row (cashier and org_admin both refused);
+  add-on/canteen unit prices recomputed server-side (999 posted values
+  become 50/30); extension-charge hand-posting refused; second active
+  session refused (client guard 23514 + unique index 23505); second open
+  shift refused; forged audit attribution replaced from claims.
+- 04 checkout/void (pgTAP): 15/15 green — within-grace checkout seals
+  450+100=550; double checkout refused; 61 minutes past grace posts
+  exactly two ₱150 blocks (total 2300, qty 2, extension line 300); void
+  admin-only, reason mandatory, closed-session void leaves sealed money
+  frozen, no path restores a voided charge, one same-transaction audit
+  row each.
+- 05 escalation (pgTAP): 6/6 green — advances eligible rooms only
+  (occupied→overdue past grace; in-window stays occupied); second run
+  changes nothing (idempotent); zero money rows written.
+- 06 rate merge (pgTAP): 13/13 green — canteen override merges; zero
+  grace legal; failed validations leave stored config unchanged; unknown
+  catalogue keys and invalid extension values refused; unowned keys
+  preserved.
+- 07 shift close (pgTAP): 13/13 green — vault-13 buckets (room 2650 =
+  base+surcharge by checkout instant, add-ons 350 = totals minus base and
+  surcharge, canteen 60 = half-open window, total 3060); cross-shift
+  checkout reaches the later window; voided session excluded; second
+  close refused; one-shot count (second count refused); org force-close;
+  close and count each write one audit row.
+
+EVIDENCE 319b6ad /Silid/supabase/migrations/20260924153000_checkout_void.sql:1 — checkout/void/escalation migrations + suites 04/05 committed (tier-lookup money fix included)
+EVIDENCE 26f646d /Silid/supabase/migrations/20260924163000_rate_merge.sql:1 — rate-config merge migration + suite 06
+EVIDENCE 22fda59 /Silid/supabase/migrations/20260924170000_shift_close.sql:1 — shift-close sealing + rpc_boundaries (privileged transitions moved to the non-exposed app schema; public wrappers clock-sealed) + suite 07
+EVIDENCE d80b2ad /Silid/supabase/migrations/20260924142000_tenant_policies.sql:100 — advisor fixes (init-plan claims, attribution FK indexes) + pgTAP corrections in suites 02/03
+EVIDENCE a4fff7d /Silid/supabase/migrations/20260924145000_server_seal_and_guards.sql:91 — app-schema EXECUTE revoked from authenticated before the claim-reader re-grant
+
+STATUS: IN PROGRESS — Deliverables 1–7, 10, 13 closed with green
+verification; proceeding to Deliverables 8, 9, 14, 11, 12, the CI RLS
+job, and the acceptance report. The phase itself closes only through the
+runner's review gate (attack battery, mutation gate, money-recomputation
+gate, tripwire check, fresh review sub-agent).
