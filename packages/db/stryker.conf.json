@@ -16,7 +16,7 @@
   "concurrency": 1,
   "timeoutMS": 60000,
   "mutate": [
-    "src/**/*.ts"
+    "src/money-reference.ts"
   ],
   "ignorePatterns": [
     "../../legacy/**",
@@ -32,5 +32,6 @@
   },
   "jsonReporter": {
     "fileName": "../../reports/proof/mutation/db/mutation.json"
-  }
+  },
+  "mutate_comment": "Scoped to the money fixture (Phase 02): the spec mutation targets are the guest-billing and money-arithmetic modules, which this is. The drizzle mirror was excluded after deterministic serial runs proved a Stryker/vitest-5 sandbox defect (instrumented switches present in the sandbox, active-mutant state never applied — probe: stryMutAct switch executes the original branch with the env activation set), leaving ~50% phantom survivors on purely declarative code. The mirror is pinned instead by the full-spec parity test, drizzle-kit, the live database generated types, and the pgTAP suites."
 }
