@@ -88,7 +88,7 @@ begin
 end;
 $$;
 
-revoke all on all functions in schema app from public, anon;
+revoke all on all functions in schema app from public, anon, authenticated;
 grant execute on function app.claim_role(), app.claim_org_id(), app.claim_branch_id(),
   app.is_platform_admin(), app.is_org_admin(), app.is_cashier(), app.in_org(uuid), app.in_branch(uuid, uuid)
   to authenticated;
