@@ -1,14 +1,34 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "pnpm",
-  "testRunner": "vitest",
-  "plugins": ["@stryker-mutator/vitest-runner"],
-  "testRunner_comment": "Take a look at https://github.com/stryker-mutator/stryker-js/tree/master/packages/vitest-runner for information about the vitest plugin.",
-  "reporters": ["clear-text", "progress", "html", "json"],
-  "coverageAnalysis": "perTest",
-  "mutate": ["src/**/*.ts"],
-  "ignorePatterns": ["../../legacy/**", "coverage/**"],
-  "thresholds": { "high": 90, "low": 80, "break": 80 },
-  "htmlReporter": { "fileName": "../../reports/proof/mutation/db/mutation.html" },
-  "jsonReporter": { "fileName": "../../reports/proof/mutation/db/mutation.json" }
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "node node_modules/vitest/vitest.mjs run --config vitest.stryker.config.mjs --coverage.enabled=false"
+  },
+  "testRunner_comment": "The command runner replaces the vitest plugin (Phase 02): @stryker-mutator/vitest-runner@10.0.0 declares peer vitest >=2, but under vitest 5.0.1 every per-mutant run completed zero tests (debug log + mutation.json testsCompleted:0), so no mutant was ever applied and all survived. The command runs with vitest.stryker.config.mjs (zero imports) because the sandboxed copy of vitest.config.ts resolves 'vitest/config' unreliably through the node_modules symlink on Windows and vitest 5 exits 0 on that startup error. Coverage is disabled explicitly: the coverage thresholds are a separate gate.",
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "coverageAnalysis": "off",
+  "mutate": [
+    "src/**/*.ts"
+  ],
+  "ignorePatterns": [
+    "../../legacy/**",
+    "coverage/**"
+  ],
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 80
+  },
+  "htmlReporter": {
+    "fileName": "../../reports/proof/mutation/db/mutation.html"
+  },
+  "jsonReporter": {
+    "fileName": "../../reports/proof/mutation/db/mutation.json"
+  }
 }
