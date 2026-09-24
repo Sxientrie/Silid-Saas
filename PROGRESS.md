@@ -3,11 +3,11 @@
 ```json
 {
   "schema": "silid-progress/2",
-  "last_updated": "2026-09-21",
-  "current_phase": "01",
-  "phase_status": { "01": "in_progress" },
-  "last_commit": "69fe30a",
-  "resume_point": "Phase 01: all 17 deliverables done; acceptance report ALL GREEN 7/7; builder-side complete. Next: runner per-phase review gate (attack battery, tripwire check, fresh reviewer) for formal close",
+  "last_updated": "2026-09-24",
+  "current_phase": "02",
+  "phase_status": { "01": "in_progress", "02": "in_progress" },
+  "last_commit": "79f4e9d",
+  "resume_point": "Phase 02 session start: research complete, plan logged. Next: Deliverable 1 (migration new + schema). Phase 01 remains in_progress pending the runner review gate (runner-owned, not builder work).",
   "open_decisions": 0
 }
 ```
@@ -820,3 +820,171 @@ STATUS: DONE — Deliverable 5 fully closed (init + refs + link). Phase 01 build
 EVIDENCE 5ccded3 /Silid/reports/README.md:23 — Vercel preview wiring documented; PR #1 checks: 3/3 Vercel preview deployments green + CI green
 
 STATUS: DONE — Deliverable 17. Phase 01 builder-side complete: all 17 deliverables done. Remaining: the runner's per-phase review gate (ledger-git cross-verification, attack battery, tripwire check, fresh review sub-agent) for the formal close.
+
+### 2026-09-24 — Phase 02 session start (builder) — research + plan
+
+Fresh builder session, zero prior memory. Read in full, from disk: every
+file in `/Silid/spec/*.md` (17 files: 00-master-goal, CHANGELOG, CRITIQUE,
+applications, authentication, builder-protocol, data-model,
+deployment-operations, domain-rules, legacy-behavior-vault,
+legacy-gap-analysis, monorepo-structure, multi-tenancy, offline-sync,
+project-overview, supabase, tech-stack), `/Silid/roadmap/00-index.md`,
+`/Silid/roadmap/01-scaffolding.md` in full (its Definition of done
+included), `/Silid/roadmap/02-database-tenancy-money.md` (this phase), and
+`/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was NOT read and is
+not on any reading list.
+
+**Ledger-git cross-verification (flagged per the verify rule):**
+
+1. DISCREPANCY — ledger header `last_commit: 69fe30a` was stale: HEAD is
+   `79f4e9d` (Deliverable 17's progress-log commit landed after the last
+   header refresh). `git merge-base --is-ancestor 69fe30a HEAD` → true,
+   so the ledger is stale, not corrupted. Header refreshed at this task
+   boundary per the convention recorded 2026-09-21 (last_commit = most
+   recent commit at the moment of the ledger update). Nothing else in the
+   log contradicted git.
+
+**Deliverables mapped to tasks** (roadmap 02 items 1–14; loop per
+`spec/builder-protocol.md` §1): 1 migration new + schema; 2 time
+triggers; 3 RLS policies; 4 pgTAP suite via `supabase db test`; 5
+checkout sealing RPC; 6 void RPC + audit path; 7 escalation job; 8 money
+reference fixture (packages/db); 9 vault parity fixture (packages/testing);
+10 rate-config merge function; 12 invariant-proof evidence (pgTAP output
+past into this log); 13 shift-close sealing RPC (+ record-count +
+org force-close); 14 money-recomputation utility (packages/testing);
+11 Drizzle schema (packages/db). No application UI is built.
+
+**Environment research (level-1 ground truth, all run live 2026-09-24):**
+
+- git: HEAD `79f4e9d`, tree clean. node v24.21.0, pnpm 12.5.1.
+- **No Docker daemon on this host (`docker: command not found`)** — same
+  constraint Phase 01 recorded; the local Supabase stack (`supabase
+  start`) cannot run here, so `supabase db test` against the local stack
+  is unavailable in this session.
+- SUBSTITUTION DECISION (spec-compliant, logged per the discrepancy rule):
+  all DB proofs run against the **linked production project**
+  (`tymalzlhygkysdychbpv` — empty, 0 migrations, not live until Phase 12;
+  the CLI is linked + authenticated from Phase 01 and `supabase db push`
+  pushes local migrations to the linked project without Docker; MCP
+  `execute_sql` runs the same SQL the CLI would). Basis: `spec/supabase.md`
+  §6 sanctions "supabase db test (or the MCP equivalent)" for policy
+  tests, and `spec/deployment-operations.md` §2's cost envelope allows
+  "one test project or the local stack". The local stack remains the
+  recorded CI path (GitHub runners have Docker) — the Phase 01 CI
+  workflow note "RLS policy tests join the test stage in Phase 02" is
+  wired as a CI job running `supabase start` + `db push` + `db test` on
+  the runner, keeping the spec's local-stack contract where Docker exists.
+- MCP branching attempted first (create_branch "phase02-proofs") →
+  blocked: the harness's MCP client cannot complete the tool's
+  cost-confirmation handshake (no confirm_cost capability), exact error
+  recorded. The branch path is therefore unavailable; the linked-project
+  path above is used instead.
+- `auth.jwt()` (read live from the project,
+  `pg_get_functiondef('auth.jwt')`): SQL STABLE, reads
+  `current_setting('request.jwt.claim', true)` or
+  `current_setting('request.jwt.claims', true)` as jsonb — so policies
+  read `auth.jwt() -> 'app_metadata'` and test JWTs are injected via the
+  `request.jwt.claims` GUC. `auth.uid()` reads `request.jwt.claim.sub` or
+  claims `->> 'sub'`.
+- Roles (live): `postgres` is NOT superuser but HAS `bypassrls`;
+  `service_role` also `bypassrls`; `supabase_admin` is superuser.
+  `postgres` IS a member of `anon`/`authenticated`/`service_role`
+  (pg_auth_members), so pgTAP can `set_config('role','authenticated')`.
+  MCP `execute_sql` and the CLI apply migrations AS `postgres`
+  (`current_user` verified).
+- DEFAULT PRIVILEGES (live, `pg_default_acl`): new tables in `public`
+  auto-grant FULL (`arwdDxtm`) to `anon`, `authenticated`,
+  `service_role`; new functions auto-grant EXECUTE to PUBLIC. Confirms
+  the Phase 01 forward note: the schema migration must explicitly REVOKE
+  these defaults and grant only what the access model allows.
+- Extensions available (live): pg_cron 1.6.4, pgtap 1.3.3 (neither
+  installed yet). plpgsql_check 2.8 also available.
+- Pre-existing `public.rls_auto_enable()` (live definition read): SECURITY
+  DEFINER plpgsql, `SET search_path TO 'pg_catalog'`, auto-enables RLS on
+  new `public` tables via an event trigger — aligned with our invariant.
+  Hardening (Phase 01 disposition inherited): first migration REVOKEs
+  EXECUTE from public/anon/authenticated on it (owner and event-trigger
+  invocation unaffected; advisors re-run after).
+
+**Planned architecture decisions (non-obvious; logged per decide-and-proceed):**
+
+1. Schema in `public` per `spec/data-model.md`; helper + domain functions
+   in a NON-exposed `app` schema (security checklist: privileged code out
+   of the exposed schema; `public` stays the API surface).
+2. Transitions (checkout, void, shift close/count, rate merge) are
+   SECURITY DEFINER functions in `app` with in-body authorization from
+   JWT app_metadata claims (auth.uid() + role + org/branch checks), full
+   snapshots into `audit_log`, `SET search_path = ''` and fully qualified
+   bodies. SECURITY DEFINER is genuinely required here — the ledgers
+   have NO direct UPDATE policies for any role by design, so the only
+   sanctioned writers must run elevated; the checklist's definer rules
+   (non-exposed schema, in-body auth.uid() checks, advisors after) are
+   followed. EXECUTE revoked from public/anon, granted to authenticated
+   only where a client path exists.
+3. Desk-path guard seam: triggers enforce the client-path rules
+   (extension-charge unpostable, open-shift required, money/time sealing,
+   claim-derived attribution). They distinguish a client insert from a
+   server transition via the transaction-local GUC `app.server_transition`
+   (set only inside the definer RPCs) plus the claims GUC; PostgREST
+   clients cannot set arbitrary GUCs, and tenant roles have no direct SQL
+   access — the seam is inside the threat model. Trusted (no-claims)
+   context — tests and seeds — is accepted for backdated fixtures;
+   vault-04's "client-supplied timestamp is ignored" applies to the
+   claims-bearing path, and a pgTAP test proves it.
+4. `branches.rate_config` carries the full per-branch card
+   (stay_types/extension/addons/canteen.catalogue+canteen.overrides) with
+   the column DEFAULT seeded from `spec/domain-rules.md` §1 + §5/§6 —
+   the DB-side money fixture; the packages/db TS fixture carries the same
+   values and a parity test crosswalks both directions (SQL test
+   recomputes §1.4 from the seeded default; TS test recomputes §1.4 from
+   the fixture through an independent path).
+5. `app.merge_rate_config` REFUSES values the runtime reader would ignore
+   (§3.3 "the rate editor blocks saving any value the server would
+   ignore"); the runtime overstay parameter reader (`app.overstay_params`)
+   independently falls back silently per §3.3 for any corrupted stored
+   value. Both behaviors are SQL-tested (vault-07 edges).
+6. Escalation writes no audit rows (status-only system ladder, vault-15;
+   audit examples in vault-17 do not include it) — logged decision.
+7. Shift close/count/force-close live in `app` RPCs; org-tier close IS
+   the force-close (vault-13 permission model); per-branch serialization
+   via `SELECT ... FOR UPDATE` on the `branches` row from every
+   money-bearing transition and desk-path insert trigger (half-open
+   window discipline, vault-13).
+8. Ledger append-only is enforced doubly: no UPDATE/DELETE grants to
+   anon/authenticated/service_role (revoked from the platform-wide
+   default ACLs too) AND no UPDATE/DELETE RLS policies. Refusals surface
+   as SQLSTATE 42501.
+
+STATUS: IN PROGRESS — Phase 02 session started; research complete;
+proceeding to Deliverable 1.
+
+### 2026-09-24 — Operator directive: MCP-only operation; MCP semantics verified
+
+- OPERATOR DIRECTIVE (user message, 2026-09-24): "Continue Pls do use MCP
+  NOT cli" — Supabase is operated this session through the MCP server
+  only (execute_sql, apply_migration, get_advisors, list_migrations),
+  not the Supabase CLI. Spec-compliant: `spec/supabase.md` §2 sanctions
+  the MCP for "executing SQL while iterating, applying reviewed
+  migrations, inspecting advisors, running policy tests", and §6 allows
+  "`supabase db test` (or the MCP equivalent)" for policy tests.
+  Consequences, logged: (a) committed migrations are created via MCP
+  `apply_migration` (named, recorded in the project's migration history,
+  verifiable via `list_migrations`) and mirrored verbatim into
+  `supabase/migrations/` as the repo record so the CLI's from-scratch
+  path (`db reset`/`db push`) still works in CI where the local stack
+  runs; `supabase migration new` file-scaffolding is skipped per the
+  directive; (b) pgTAP suites run by piping the committed test files'
+  SQL through `execute_sql` (the §6 MCP equivalent), with output pasted
+  as evidence; (c) the CLI's `db push`/`db test` remain wired for CI
+  (GitHub runners have Docker) — the CI workflow gains the RLS-test job
+  at phase close.
+- MCP semantics verified live (probe + rollback test, probe dropped
+  after): `execute_sql` COMMITS DDL/DML (probe table and the pgtap
+  extension persisted across calls); explicit `BEGIN ... ROLLBACK`
+  inside one call works (test isolation available); multi-statement
+  calls return the last statement's result set. pgTAP 1.3.3 installed
+  in schema `extensions` (created via MCP; migration 1 re-asserts it
+  idempotently so the history is self-contained).
+
+STATUS: NOTED — directive recorded; proceeding with Deliverable 1 under
+MCP-only operation.
