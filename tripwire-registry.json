@@ -1,1 +1,28 @@
-{"entries": []}
+{
+  "entries": [
+    {
+      "phase": "01",
+      "planted_claim": null,
+      "expected_detection": null,
+      "outcome": "NOT_PLANTED",
+      "recorded": "2026-09-25",
+      "note": "Phase 01's builder brief came from the operator's pastes, not a runner invocation (precedent recorded at Phase 02). No runner-handled builder prompt existed to plant a claim in. Tripwire check N/A. First planted tripwire is due at Phase 04, the first runner-invoked builder."
+    },
+    {
+      "phase": "02",
+      "planted_claim": null,
+      "expected_detection": null,
+      "outcome": "NOT_PLANTED",
+      "recorded": "2026-09-25",
+      "note": "Recorded in PROGRESS.md at the Phase 02 close: the builder brief came from the operator's pastes, not a runner invocation. Tripwire check N/A; registry untouched at the time per the same entry."
+    },
+    {
+      "phase": "03",
+      "planted_claim": null,
+      "expected_detection": null,
+      "outcome": "NOT_PLANTED",
+      "recorded": "2026-09-25",
+      "note": "Phase 03's builder brief came from the operator's pastes (recorded in the Phase 03 session-start ledger entry); builder-side work completed before the first true runner invocation. The runner review gate for Phase 03 found no builder prompt to have planted a claim in. Tripwire check N/A."
+    }
+  ]
+}
