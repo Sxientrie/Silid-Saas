@@ -1,0 +1,63 @@
+Initialising login role...
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                                                       │
+├────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 1..57                                                                                                      │
+│ ok 1 - T1 attack: org_admin claim for an id with no staff row sees zero org rows                           │
+│ ok 2 - T2 attack: forged org_admin claim (no staff row) refused on branches insert                         │
+│ ok 3 - T3 attack: org_admin claim over a cashier profile sees zero org rows                                │
+│ ok 4 - T4 attack: user_metadata role/org forgery sees zero org rows (no policy reads user_metadata)        │
+│ ok 5 - T5 attack: user_metadata forgery refused on staff insert                                            │
+│ ok 6 - T6 attack: cashier claim with sibling-branch branch_id sees zero sibling rows                       │
+│ ok 7 - T7 attack: cashier claim with sibling branch sees no other staff row                                │
+│ ok 8 - T8 informational: signed platform claims reach all orgs by design (client cannot mint these claims) │
+│ ok 9 - T9 attack: platform_admin claim carrying org_id sees zero org rows                                  │
+│ ok 10 - T10 attack: org_admin claim carrying branch_id sees zero org rows                                  │
+│ ok 11 - T11 attack: org_admin cannot create an organization                                                │
+│ ok 12 - T12 attack: cashier cannot create an organization                                                  │
+│ ok 13 - T13 attack: anon cannot create an organization                                                     │
+│ ok 14 - T14 control: platform tier creates an organization                                                 │
+│ ok 15 - T15 attack: org_admin cannot suspend another organization                                          │
+│ ok 16 - T16 attack: org_admin cannot suspend even its own organization                                     │
+│ ok 17 - T17 attack: cashier cannot touch organization status                                               │
+│ ok 18 - T18 control: platform tier sets organization status                                                │
+│ ok 19 - T19 control: the status change took effect                                                         │
+│ ok 20 - T20 attack: org_admin cannot add a branch to another organization                                  │
+│ ok 21 - T21 attack: cashier cannot add branches                                                            │
+│ ok 22 - T22 control: org_admin manages its own organization branch structure                               │
+│ ok 23 - T23 attack: org_admin cannot update another organization's branch                                  │
+│ ok 24 - T24 attack: branch rows have no delete path                                                        │
+│ ok 25 - T25 attack: org_admin A sees exactly one organization (its own)                                    │
+│ ok 26 - T26 attack: org_admin A sees zero branches of organization B                                       │
+│ ok 27 - T27 attack: org_admin A sees zero staff of organization B                                          │
+│ ok 28 - T28 attack: org_admin A sees zero audit rows of organization B                                     │
+│ ok 29 - T29 attack: org_admin A cannot deactivate organization B staff via the RPC                         │
+│ ok 30 - T30 attack: cashier tier sees zero audit rows (no audit review below org tier)                     │
+│ ok 31 - T31 attack: cashier sees only its own staff row                                                    │
+│ ok 32 - T32 attack: cashier sees only its own branch row (sibling branch invisible)                        │
+│ ok 33 - T33 attack: cashier cannot insert staff rows                                                       │
+│ ok 34 - T34 attack: org_admin cannot insert staff rows into another organization                           │
+│ ok 35 - T35 attack: staff rows exist only for tenant roles (platform_admin staff row refused)              │
+│ ok 36 - T36 attack: no platform_admin staff row exists after the insert attempt                            │
+│ ok 37 - T37 attack: org_admin cannot rewrite its own staff row into a platform_admin row                   │
+│ ok 38 - T38 attack: staff attribution (org_id) is not reassignable                                         │
+│ ok 39 - T39 attack: org_admin cannot update audit rows                                                     │
+│ ok 40 - T40 attack: org_admin cannot delete audit rows                                                     │
+│ ok 41 - T41 attack: forged-actor audit insert is neutralized by the seal, not waved through                │
+│ ok 42 - T41b control: the sealed row's actor is the TRUE caller, not the forged one                        │
+│ ok 43 - T42 attack: null-attribution (platform-style) audit insert attempt is neutralized                  │
+│ ok 44 - T42b control: the sealed row carries the CALLER'S org, not platform null attribution               │
+│ ok 45 - T43 control: platform-tier audit rows carry null org/branch attribution                            │
+│ ok 46 - T44 attack: even the platform tier cannot update audit rows                                        │
+│ ok 47 - T45 attack: even the platform tier cannot delete audit rows                                        │
+│ ok 48 - T46 baseline: the active cashier's claims act on the database                                      │
+│ ok 49 - T47 control: org_admin deactivates its own cashier through the sanctioned RPC                      │
+│ ok 50 - T47b control: the deactivation wrote its audit row                                                 │
+│ ok 51 - T48 attack: the deactivated staff member's token sees zero branch rows                             │
+│ ok 52 - T49 attack: the deactivated staff member's token sees zero staff rows                              │
+│ ok 53 - T50 attack: the deactivated staff member's token sees zero organizations                           │
+│ ok 54 - T51 attack: the deactivated (stale-token) caller cannot deactivate others                          │
+│ ok 55 - T52 attack: org_admin B cannot deactivate organization A staff (cross-tenant RPC guard)            │
+│ ok 56 - T53 attack: deactivation is one-shot (already-inactive target refused)                             │
+│ ok 57 - T54 control: platform tier sees all three fixture organizations                                    │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

@@ -70,7 +70,7 @@ export const staff = pgTable(
     index("staff_org_id_idx").on(table.orgId),
     index("staff_branch_id_idx").on(table.branchId),
     uniqueIndex("staff_org_email_uniq").on(table.orgId, table.email),
-    check("staff_role_check", sql`role in ('cashier', 'org_admin', 'platform_admin')`),
+    check("staff_role_check", sql`role in ('cashier', 'org_admin')`),
     check(
       "staff_role_branch_shape",
       sql`(role = 'cashier' and branch_id is not null) or (role <> 'cashier' and branch_id is null)`,

@@ -21,7 +21,11 @@ insert into public.staff (id, org_id, branch_id, email, role, display_name) valu
   ('9a300000-0000-0000-0000-000000000003', '9a100000-0000-0000-0000-000000000002', '9a200000-0000-0000-0000-000000000003', 'b1@attack.test', 'cashier', 'B1 cashier'),
   ('9a300000-0000-0000-0000-000000000004', '9a100000-0000-0000-0000-000000000001', null, 'admin-a@attack.test', 'org_admin', 'Org A admin'),
   ('9a300000-0000-0000-0000-000000000005', '9a100000-0000-0000-0000-000000000002', null, 'admin-b@attack.test', 'org_admin', 'Org B admin'),
-  ('9a300000-0000-0000-0000-000000000006', '9a100000-0000-0000-0000-000000000002', null, 'platform@attack.test', 'platform_admin', 'Platform');
+  -- staff rows exist only for tenant roles (data-model §1; the Phase 03
+  -- corrective pass made it a table constraint): this fixture row carries a
+  -- tenant role — no assertion reads the row, and the platform claims below
+  -- require no staff row by design.
+  ('9a300000-0000-0000-0000-000000000006', '9a100000-0000-0000-0000-000000000002', null, 'platform@attack.test', 'org_admin', 'Org B admin 2');
 insert into public.rooms (id, org_id, branch_id, room_number) values
   ('9a400000-0000-0000-0000-000000000001', '9a100000-0000-0000-0000-000000000001', '9a200000-0000-0000-0000-000000000001', 'X1'),
   ('9a400000-0000-0000-0000-000000000002', '9a100000-0000-0000-0000-000000000001', '9a200000-0000-0000-0000-000000000002', 'X2'),

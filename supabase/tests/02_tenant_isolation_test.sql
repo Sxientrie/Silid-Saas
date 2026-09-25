@@ -18,6 +18,10 @@ values
   ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'A2'),
   ('20000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', 'B1');
 
+-- staff rows exist only for tenant roles (data-model §1; the Phase 03
+-- corrective pass made it a table constraint), so the former platform_admin
+-- fixture row carries a tenant role — no assertion reads this row, and the
+-- platform claims below require no staff row by design.
 insert into public.staff (id, org_id, branch_id, email, role, display_name)
 values
   ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '20000000-0000-0000-0000-000000000001', 'a1@example.test', 'cashier', 'A1 cashier'),
@@ -25,7 +29,7 @@ values
   ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000003', 'b1@example.test', 'cashier', 'B1 cashier'),
   ('30000000-0000-0000-0000-000000000005', '10000000-0000-0000-0000-000000000002', null, 'admin-b@example.test', 'org_admin', 'Org B admin'),
   ('30000000-0000-0000-0000-000000000004', '10000000-0000-0000-0000-000000000001', null, 'admin-a@example.test', 'org_admin', 'Org A admin'),
-  ('30000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000002', null, 'platform@example.test', 'platform_admin', 'Platform admin');
+  ('30000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000002', null, 'platform@example.test', 'org_admin', 'Org B admin 2');
 
 insert into public.rooms (id, org_id, branch_id, room_number)
 values

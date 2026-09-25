@@ -39,3 +39,14 @@ file and section, the old rule, the new rule, and the reason (per
   @supabase/supabase-js version`); the live source wins under the
   verify-before-you-trust rule. Same minor line; installed exactly as
   confirmed (@supabase/ssr 0.12.7 and zod 4.6.5 re-confirmed unchanged).
+- 2026-09-25 — Phase 03 (corrective pass) — `spec/data-model.md` §1
+  (staff) — the staff role check constraint admitted `platform_admin`
+  alongside the tenant roles ("listed for completeness of the role
+  vocabulary") while §1's row rule said staff rows exist only for tenant
+  roles — the constraint now admits exactly `cashier` / `org_admin`, so §1's
+  row rule is enforced at the table layer for every writer (client roles and
+  the service tier) on both the insert and update paths — reason: the Phase
+  03 attack battery (suite 11, T35/T36/T37) proved the vocabulary-completeness
+  wording let an org_admin mint a `platform_admin` staff row through the
+  plain PostgREST insert and update paths; the migration is
+  `20260925033754_staff_role_tenant_only`.

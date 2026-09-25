@@ -48,9 +48,9 @@ The staff profile (distinct from the auth identity, which lives in Supabase
 Auth). Staff rows exist only for tenant roles (`cashier`, `org_admin`): a
 `platform_admin` identity lives in Supabase Auth with no tenant staff row,
 and its claims carry null `org_id`/`branch_id` (`spec/authentication.md`
-§2). The staff table's role column therefore holds `cashier` /
-`org_admin` in practice; `platform_admin` is listed for completeness of
-the role vocabulary.
+§2). The role check constraint on the table therefore admits exactly the
+tenant roles — a `platform_admin` value is not a legal staff-row role for
+any writer at any privilege level, on the insert and update paths alike.
 
 | Column | Type | Notes |
 |---|---|---|
