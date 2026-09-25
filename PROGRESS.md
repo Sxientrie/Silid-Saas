@@ -1742,3 +1742,138 @@ EVIDENCE d25e7b3 /Silid/reports/phase-03-acceptance.md:1 — the builder accepta
 
 STATUS: SESSION CLOSED — Phase 03 builder-side complete. The runner's
 review gate owns the formal close.
+
+
+### 2026-09-25 — Phase 03 corrective pass (attack-battery break fix)
+
+Fresh builder session, zero prior memory, executing the corrective pass of
+the re-opened Phase 03. Read in full, from disk: every file in
+`/Silid/spec/*.md` (17 files), `/Silid/roadmap/03-auth-platform-admin.md`,
+and `/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was NOT read and
+is not on any reading list.
+
+**Ledger-git cross-verification (flagged per the verify rule):** the ledger
+header's `last_commit: d25e7b3` was stale — HEAD was `108c729` (the Phase 03
+close-out commit landed after the last header refresh; the recorded pattern
+from Phases 01/02). Stale, not corrupted; the header is the runner's to
+maintain and was not touched here.
+
+**THE BREAK (from the battery's report):** staff rows were not constrained
+to tenant roles — an org_admin could mint a `platform_admin` staff row
+through the plain PostgREST path, on insert (suite 11 T35/T36) and update
+(T37). `staff_role_check` deliberately admitted 'platform_admin' for role
+vocabulary completeness, and `staff_scoped_insert`/`staff_scoped_update`
+granted the org tier on role alone. data-model.md §1 says staff rows exist
+ONLY for tenant roles; no escalation was proven, but the violation was
+client-reachable and waited on any future claim-sync path.
+
+**Mechanism chosen (three layers; each does the job the spec assigns it):**
+RLS cannot bind `service_role` (bypassrls) or SECURITY DEFINER paths, so a
+table constraint is the only mechanism that enforces §1 for EVERY writer on
+BOTH paths — that is the core fix. The client-path error SHAPES demanded by
+the attacker's tests then determine the RLS design, and the ordering facts
+were verified live on the linked project with a scratch-table probe before
+authoring: the RLS WITH CHECK fires BEFORE table CHECK constraints on
+INSERT (42501 wins over 23514), a BEFORE trigger fires before both, and a
+row failing an UPDATE policy's USING yields rowcount 0 silently.
+1. Table CHECK `staff_role_check` now admits exactly `('cashier',
+   'org_admin')` — the every-writer guarantee, insert and update, including
+   the service tier (the linked project held 0 staff rows; validated
+   immediately).
+2. `staff_scoped_insert` gained the tenant-role predicate on the org_admin
+   arm — the client insert of a platform_admin staff row is refused with
+   42501 at the policy boundary (T35), not 23514.
+3. `staff_scoped_update` keeps its exact pre-break org-match WITH CHECK
+   (attribution rewrites raise 42501 — T38) and a new BEFORE UPDATE trigger
+   guard makes a role rewrite to a non-tenant value silently out of scope
+   (rowcount 0) for the claims-bearing client path (T37) and a loud 23514
+   refusal for every other writer. T37 (silent 0) and T38 (42501) target the
+   same row with different SET columns — plain RLS cannot express both
+   (policies cannot see the SET list); the probe-verified trigger is the
+   only mechanism that can. Honest note: the first migration re-scoped the
+   UPDATE policy to platform-only, which fixed T35/T36/T37 but regressed
+   T38; the second migration completed the design. Both are recorded.
+
+**Migrations applied through the Supabase MCP server (apply_migration) and
+mirrored verbatim into `supabase/migrations/`** (one-for-one with the
+project's migration history, verified via list_migrations):
+- `staff_role_tenant_only` — version 20260925033754
+- `staff_update_policy_role_guard` — version 20260925034545
+
+**Companion artifacts (none attacker-owned):** suites 02 and 09 each
+carried one `platform_admin` staff FIXTURE row — the exact state the
+constraint now forbids; neither is read by any assertion (platform claims
+require no staff row per `app.claims_match_profile`), and both now carry a
+tenant role with a comment. The Drizzle mirror
+(`packages/db/src/drizzle/schema.ts`) follows the constraint vocabulary
+(parity test asserts constraint names, unchanged). spec/data-model.md §1's
+"listed for completeness of the role vocabulary" sentence amended — the
+constraint now admits exactly the tenant roles — with the spec/CHANGELOG.md
+entry in the same commit. No policy was weakened: INSERT is strictly
+tighter, UPDATE loses only the unsanctioned role-mint hole, and the
+constraint adds a guarantee that did not exist.
+
+**Additional battery findings fixed (the battery's Node-side tests, which
+the runner placed in the working tree untracked, confirmed 11 further
+breaks in the Phase 01 proof pipeline; fixed in the same pass so the
+attacker's entire suite passes per spec/00-master-goal.md):**
+- acceptance-report generator (5 false-green channels): a PASS line with
+  empty proof slots counted green; failing gates left the verdict ALL
+  GREEN; a gate detail contradicting its own status rode a PASS label;
+  duplicate results differing only in case resolved last-entry-wins (array
+  order flipped the verdict); a recorded result matching no acceptance
+  input was dropped silently. Verdict now demands fully proven lines,
+  healthy gates with verifiable details (fail-closed), no conflicting
+  duplicates, no unmatched results; every acceptance-inputs section is
+  scanned (duplicate/alternate headings included).
+- rule linter (6 evasions): DONE-claim detection is case-insensitive and
+  shape-agnostic (any heading level, bold headers, bullet lines); an
+  EVIDENCE tag resolves only when well formed (7-40 hex sha, /Silid/-rooted
+  path, :line) AND the cited path exists in the cited commit's tree
+  (`git cat-file -e`); duplicate and alternate-spelled acceptance headings
+  are scanned. All 63 EVIDENCE tags in the real PROGRESS.md were verified
+  to resolve before the check was enabled. One builder-era fixture (a tag
+  that was shape-valid but never resolvable) updated to cite a tag that
+  resolves at HEAD.
+
+**Verification (all run live 2026-09-25 against the linked project
+`tymalzlhygkysdychbpv` and the workspace):**
+- Suite 11 (the failing proof): 57/57 assertions green — T35/T36/T37 now
+  refuse, and no other assertion moved.
+- Suites 01-10 re-run: 01 structural 68/68 (exit 0); 02: 14, 03: 27, 04:
+  15, 05: 6, 06: 13, 07: 13, 08: 15, 09: 23, 10: 19 — 145 assertions, zero
+  regressions (counts identical to the recorded Phase 03 set). TAP outputs
+  refreshed under reports/proof/pgtap/phase-03/ (including the new
+  11_attack_battery_phase03_test.tap).
+- `pnpm --filter @silid/auth test`: 49 passed | 1 skipped (50) — the skip
+  is the real-signup claim-minting test on the platform's confirmation-email
+  rate limit (429 over_email_send_rate_limit, logged by the test); re-run
+  later in the pass after a cooldown as instructed — still inside the email
+  window, still a clean logged skip. All attacker vitest files pass.
+- `pnpm test` 13/13 turbo tasks; `pnpm lint` 13/13; `pnpm check-types` 9/9;
+  `pnpm rule-lint` clean (31 files) under the stricter tag-resolution rule.
+- Advisors (security + performance, after the schema change): security — 1
+  WARN, `auth_leaked_password_protection` (the pre-existing auth-config
+  dashboard toggle recorded in Phase 03, carried to Phase 11; nothing new
+  introduced by this pass); performance — 6 INFO `unused_index` on an empty
+  database (the tenancy/attribution indexes are spec-required). Disposition:
+  clean or dispositioned.
+
+EVIDENCE e3edbfb /Silid/supabase/migrations/20260925033754_staff_role_tenant_only.sql:1 — migration 1: the tenant-only role CHECK plus the tightened INSERT policy (MCP-applied, mirrored verbatim)
+EVIDENCE e3edbfb /Silid/supabase/migrations/20260925034545_staff_update_policy_role_guard.sql:1 — migration 2: the BEFORE UPDATE role guard plus the restored org-match UPDATE policy (MCP-applied, mirrored verbatim)
+EVIDENCE e3edbfb /Silid/reports/proof/pgtap/phase-03/11_attack_battery_phase03_test.tap:1 — the green corrective-pass run of the attack battery: 57/57 assertions (T35/T36/T37 refusing)
+EVIDENCE e3edbfb /Silid/reports/proof/pgtap/phase-03/02_tenant_isolation_test.tap:1 — the refreshed full-suite evidence: suites 01-10 green (68 structural + 145 assertions, counts unchanged)
+EVIDENCE e3edbfb /Silid/supabase/tests/11_attack_battery_phase03_test.sql:1 — the battery's Phase 03 suite committed as a permanent regression test
+EVIDENCE e3edbfb /Silid/packages/auth/test/attack.claimsForgeries.test.ts:1 — the battery's auth-package suites committed as permanent regression tests (49 passed | 1 logged skip)
+EVIDENCE 5f1285b /Silid/packages/testing/src/acceptance-report.ts:1 — the generator's closed false-green channels (proof-complete lines, gate-status and gate-detail checks, conflict and unmatched handling, multi-section scanning)
+EVIDENCE 5f1285b /Silid/packages/testing/src/rule-lint.ts:1 — the linter's closed evasions (shape-agnostic case-insensitive DONE claims, git-resolvable /Silid/-rooted EVIDENCE tags, multi-section acceptance scanning)
+EVIDENCE 5f1285b /Silid/packages/testing/test/attack.acceptance-report.test.ts:1 — the battery's packages/testing suites (24 tests) committed as permanent regression tests
+
+Working-tree note for the runner: `tripwire-registry.json` shows as modified
+in the working tree — this session never read or wrote it, and it is
+excluded from the corrective-pass commits. The Phase 01 review gate remains
+pending (inherited caveat); the ledger header remains the runner's to flip.
+
+STATUS: DONE — the break is fixed and proven (57/57, no regressions across
+suites 01-10), the battery's full suite is committed and green, and the
+corrective pass is logged. The phase close remains the runner's.
