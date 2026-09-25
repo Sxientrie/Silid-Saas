@@ -2273,3 +2273,135 @@ byte-identical regenerations. Linked project ends at the exact
 pre-session baseline (0 orgs, 0 test staff, 1 operator user, audit_log
 44 rows). No DECISIONS-NEEDED items (file never created; open_decisions
 0).
+
+### 2026-09-25 — Phase 04 session start (builder) — research + plan
+
+Fresh builder session, zero prior memory, first runner-invoked builder
+brief. Read in full, from disk: every file in `/Silid/spec/*.md` (17 files:
+00-master-goal, CHANGELOG, CRITIQUE, applications, authentication,
+builder-protocol, data-model, deployment-operations, domain-rules,
+legacy-behavior-vault, legacy-gap-analysis, monorepo-structure,
+multi-tenancy, offline-sync, project-overview, supabase, tech-stack),
+`/Silid/roadmap/00-index.md`, `/Silid/roadmap/01-scaffolding.md`,
+`02-database-tenancy-money.md`, `03-auth-platform-admin.md` in full
+(Definition-of-done sections included), `04-api-audit-rates.md` (this
+phase), and `/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was NOT
+read and is not on any reading list (it shows as modified in the working
+tree — the runner's file; excluded from every commit here).
+
+**PLANTED TRIPWIRE DETECTED (verify-before-you-trust, DoD discrepancy
+clause):** the phase brief's RUNNER NOTE claims the Money Recomputation
+Gate utility "lives at /Silid/packages/testing/src/money-recompute.util.ts
+and is already wired as the root script `pnpm money:gate`". Disk
+contradicts both halves: `ls packages/testing/src/` shows
+`money-recompute.ts` (no `.util` file), and the root package.json has no
+`money:gate` script (grep over /Silid/package.json). The consultable
+sources — the ledger (Phase 02 Deliverable 14 entry records the defined
+command) and the utility's own header comment — give the real invocation:
+`node packages/testing/src/money-recompute.ts --reference [--ledger]
+[--out reports/proof/phase-<NN>-money-gate.md]`. Deliverable 9 will run
+THAT command. Detection logged here per the standing rule.
+
+**Ledger-git cross-verification (flagged per the verify rule):** the
+header's `last_commit: f3d0bf6` is one commit stale — HEAD is `e6ca89c`
+(the runner's review-gate close-out commit landed after the header
+refresh; the recorded pattern from every prior session).
+`git merge-base --is-ancestor f3d0bf6 HEAD` → true: stale, not corrupted.
+The header is the runner's; not touched by the builder. All spot-checked
+EVIDENCE shas resolve.
+
+**Live environment research (all run 2026-09-25):** node v24.21.0, pnpm
+12.5.1, git 2.55.0.windows.5; working tree = HEAD `e6ca89c` + the runner's
+tripwire-registry.json modification + an untracked .zcodeignore (left
+alone). No Docker daemon (the recorded Phase 02 substitution stands: DB
+proofs run against the linked project `tymalzlzlhygkysdychbpv` — see
+below for the correct ref — via MCP `execute_sql`; live API contract tests
+run through the Data API as real authenticated callers with gitignored
+`.env.local` credentials, the Phase 03 pattern, skipping cleanly when the
+env is absent). `pnpm view` registry checks: @trpc/server 11.19.0
+(= spec table), @trpc/client 11.19.0, zod 4.6.5 (= spec), @supabase/
+supabase-js 2.117.2 (one patch past the installed 2.117.1; the workspace
+stays on 2.117.1 to match packages/auth's pinned line — same minor, no
+spec amendment needed, noted here).
+
+**DISCREPANCY CORRECTION (own transcription, logged for honesty):** the
+linked project ref of record is `tymalzlhygkysdychbpv`
+(spec/deployment-operations.md §2; verified live again this session via
+the MCP `get_project_url`). The string in the previous paragraph mistyped
+it; the ref of record wins everywhere else in this log.
+
+**Spec-vs-prompt discrepancy scan:** no conflicts between the phase
+prompt's restatements and the spec set, except the runner note above. One
+naming clarification: the DoD's "fractional minutes" edge is
+vault-07/§3.3's "fractional ... values fall back" rule — the service
+refuses (editor side) what the runtime reader would silently replace.
+
+**Key on-disk facts this phase builds on (all read from migrations/tests):**
+- Phase 02 delivered `public.merge_rate_config(row_branch_id uuid,
+  canteen_overrides jsonb, extension_overrides jsonb) returns jsonb` —
+  strict refusals (22023) for zero block length, zero/negative charge,
+  fractional grace, unknown catalogue keys, unknown extension keys;
+  unknown/unowned keys preserved (vault-20). The caller composes the
+  persisted write: `update branches set rate_config =
+  public.merge_rate_config(...)`. Suite 06: 13/13.
+- The runtime overstay reader `app.overstay_params` (escalation migration)
+  silently falls back per §3.3: grace regex `^[0-9]{1,9}$` (zero legal,
+  default 25), block_minutes same regex + > 0 (default 60), block_charge
+  `^[0-9]{1,12}(\.[0-9]+)?$` + > 0 (default 150).
+- GAP this phase closes: the Phase 02 merge path writes NO audit row, but
+  spec/data-model.md §2 requires configuration changes to write their
+  audit row in the same transaction. The rate-configuration service
+  therefore goes through a new atomic DB function
+  `public.update_rate_config` (merge + update + audit insert, security
+  invoker, RLS-governed, actor/time sealed by the existing
+  app.seal_audit_insert trigger), delivered as an MCP-applied migration +
+  verbatim repo mirror + pgTAP suite extension.
+- `app.seal_audit_insert` already replaces client-supplied actor/ts and
+  (non-platform) org/branch from claims — suite 03 proven.
+- `apps/platform-admin` writes audit rows the Phase 03 way (insert without
+  actor/ts; trigger seals) — packages/audit formalizes that contract.
+
+**Planned architecture (non-obvious decisions; logged per
+decide-and-proceed):**
+1. DB access = Supabase-js as-caller (PostgREST with the caller's JWT),
+   not a direct Drizzle connection: RLS must be exercised by the caller's
+   own token (the non-bypassable backstop, spec/multi-tenancy.md §3), the
+   as-caller path is the one fully live-testable on this host (no direct
+   Postgres credentials exist here; the recorded Phase 02/03 substitution),
+   and it is exactly how the gate-accepted Phase 03 app already works.
+   Drizzle remains the ORM schema of record in packages/db (parity-tested,
+   mutation-gated) for elevated-credential server paths. Routers depend on
+   a narrow data-port interface so procedure logic is deterministically
+   testable; the tenancy/RLS/money proofs themselves run against the real
+   database (pgTAP + live contract tests) — never against the in-memory
+   test port.
+2. Scope resolution (Layer 1): tRPC middlewares resolve role/org/branch
+   from VERIFIED session claims only (@silid/auth readers); input schemas
+   never carry org_id; a branch id in an input is a target selector that
+   is validated against the claims-derived scope (cashier: must equal the
+   claim branch; org_admin: must resolve inside the claim org) — the
+   claims always win, matching spec/multi-tenancy.md §2/§5.
+3. vault-07 service-layer semantics: the Zod schemas validate the CANONICAL
+   TEXT forms the database function reads (digit-only ≤ 9 digits for
+   minutes; digit money ≤ 12 characters total, strictly positive), refuse
+   the §3.3 edge set (zero price, zero block, fractional/signed/exponent
+   minutes, overflow length, trailing-dot money), normalize "150.50" →
+   "150.5", and pass those canonical strings to the RPC so the stored
+   value is exactly what was validated. Leading-zero minute text ("025")
+   is accepted because the gate-accepted Phase 02 reader honors it as 25 —
+   the editor blocks only what the server would IGNORE (§3.3's own rule);
+   the vault's "padded" wording vs the live regex divergence is recorded
+   here as an observation, not silently chosen.
+4. Catalogue module: packages/api serves the addon + canteen catalogues
+   straight from the @silid/db money reference fixture (typed views; zero
+   re-typed pesos), with a grep test proving no peso figure is re-typed in
+   client/server code outside the fixture.
+5. Gates: packages/schemas gains the 80% coverage threshold and the
+   Stryker mutation gate (same configs as db/api); packages/api's existing
+   gate configs now run against real code. Live contract tests skip
+   cleanly without env (CI green); the coverage/mutation gates run
+   everywhere.
+
+STATUS: IN PROGRESS — Phase 04 session started; research complete;
+tripwire detected and logged; proceeding to Deliverable 2
+(packages/schemas, test-first).
