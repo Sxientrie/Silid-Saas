@@ -8,11 +8,18 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --coverage"
   },
   "devDependencies": {
     "@silid/config": "workspace:*",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.9.1",
     "vitest": "5.0.1"
+  },
+  "dependencies": {
+    "@silid/db": "workspace:*",
+    "zod": "4.6.5"
   }
 }
