@@ -13,6 +13,17 @@ import { z } from "npm:zod@4.6.5";
  * app_metadata claims (role, org_id, branch_id) and the staff profile row
  * through the elevated credentials; returns nothing sensitive.
  *
+ * Caller liveness (spec/authentication.md §2, §5): deactivation revokes
+ * sessions and flips the profile, but app_metadata claims are NOT synced
+ * (they stay stale until an admin updates them), and this function writes
+ * with the elevated credentials — the database's claims↔profile binding
+ * (app.claims_match_profile) never applies here. So before ANY
+ * authorization decision the caller must prove liveness exactly as the
+ * database layer requires: a platform_admin claim must carry the platform
+ * claim shape (null org/branch claims), and an org_admin/cashier claim
+ * must sit on an ACTIVE staff profile row whose role, org (and branch,
+ * for a cashier) match the claims.
+ *
  * Authorization matrix (the caller's role is resolved from its CURRENT
  * auth record, not the JWT, which may be stale):
  *   platform_admin → provisions org_admin for any organization;
@@ -62,6 +73,38 @@ export default {
       const caller = callerData.user;
       const callerRole: unknown = caller.app_metadata?.role;
       const callerOrgId: unknown = caller.app_metadata?.org_id ?? null;
+      const callerBranchId: unknown = caller.app_metadata?.branch_id ?? null;
+
+      // Caller liveness BEFORE any authorization decision — the mirror of
+      // app.claims_match_profile (migration 20260925092000). A deactivated
+      // org_admin's auth record still carries its org_admin claims (a fresh
+      // sign-in re-mints them), and the elevated writes here bypass RLS, so
+      // only this check ends their access (spec/authentication.md §5:
+      // deactivating a staff member ends their access even with a token
+      // still in hand). The refusal body is the function's standard 403 —
+      // caller state never leaks.
+      let callerLive = false;
+      if (callerRole === "platform_admin") {
+        callerLive = callerOrgId === null && callerBranchId === null;
+      } else if (callerRole === "org_admin" || callerRole === "cashier") {
+        const { data: profile } = await ctx.supabaseAdmin
+          .from("staff")
+          .select("role, org_id, branch_id")
+          .eq("id", caller.id)
+          .eq("is_active", true)
+          .maybeSingle();
+        callerLive =
+          profile !== null &&
+          profile.role === callerRole &&
+          profile.org_id === callerOrgId &&
+          (callerRole === "org_admin"
+            ? callerBranchId === null && profile.branch_id === null
+            : callerBranchId !== null && profile.branch_id === callerBranchId);
+      }
+      if (!callerLive) {
+        return http(403, { error: "caller role cannot provision staff" });
+      }
+
       if (callerRole !== "platform_admin" && callerRole !== "org_admin") {
         return http(403, { error: "caller role cannot provision staff" });
       }
