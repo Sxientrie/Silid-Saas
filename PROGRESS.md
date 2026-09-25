@@ -2037,3 +2037,157 @@ STATUS: DONE — all four findings fixed and verified: the generator
 convention (70/70), the regenerated Phase 01 report (ALL GREEN 7/7,
 honest slots), the ledger corrections (entry above), and the prettier
 guard. The Phase 01 close remains the runner's.
+
+### 2026-09-25 — Phase 03 corrective pass 2 (review-gate findings fixed)
+
+Fresh builder session, zero prior memory, executing the second corrective
+pass of the re-opened Phase 03. Read in full, from disk: every file in
+`/Silid/spec/*.md` (17 files), `/Silid/roadmap/03-auth-platform-admin.md`,
+`/Silid/PROGRESS.md`, `/Silid/supabase/functions/provision-staff/index.ts`,
+and `/Silid/packages/auth/test/attack.helpers.ts` (its header documents the
+required post-run residue sweep — followed, below).
+`/Silid/tripwire-registry.json` was NOT read and is not on any reading
+list.
+
+**Ledger-git cross-verification:** HEAD was `5d96d07` at session start;
+the ledger header's `last_commit` was last refreshed before the Phase 03
+corrective-pass-1 close-out commits — the header is the runner's to
+maintain (the recorded convention from both prior corrective passes) and
+was not touched here. Spot-checked recent EVIDENCE shas (5d96d07, 709914a,
+389e63d) — all resolve as commits.
+
+**[M1 — MAJOR] caller-liveness guard in provision-staff (test-first within
+the deploy→run→fix loop this SUT recorded):**
+
+- Regression suite FIRST, as a NEW file (no existing attack.*.test.ts or
+  attack.helpers.ts modified; helpers imported per their sanction):
+  `packages/auth/test/regression.deactivatedCallerEdge.test.ts` —
+  trusted-path fixtures (org + branch + two org_admins via the admin API,
+  Residue-tracked, attack- prefixed), deactivation through the sanctioned
+  path (the platform operator calling the public deactivate_staff RPC),
+  then the DEPLOYED function attacked with the deactivated caller's
+  credentials. Four cases: the still-unexpired pre-deactivation token,
+  the fresh post-deactivation sign-in, an active org_admin control, and
+  a malformed platform claim shape.
+- Red runs against the pre-guard deployment reproduced the finding and
+  surfaced its exact shape: a deactivated org_admin who signs in again —
+  fresh VALID token, stale org_admin claims (deactivation never syncs
+  app_metadata) — provisioned with **200**; a caller whose auth record
+  carried platform_admin with org scope set provisioned with **200**.
+  A VERIFY-BEFORE-YOU-TRUST discrepancy flagged and resolved against live
+  behavior: the still-unexpired PRE-deactivation token is refused `401`
+  before the function's own logic runs, because the auth server's /user
+  endpoint session-checks revoked-session tokens (probe via a scratch
+  fixture: `admin.auth.getUser` → `400 Auth session missing!`) while the
+  same token still authenticates at the Data API (PostgREST 200,
+  RLS-filtered) — i.e. the old refusal rested entirely on incidental
+  auth-server behavior, not on anything the function enforced. Both red
+  holes are exactly the gap the guard closes; the test asserts refusal
+  for the stale-token variant (401-or-403, both refusals documented in
+  the test) and strict 403 for the two guard-reachable variants.
+- The guard (index.ts, after caller-JWT validation and role resolution
+  from the current auth record, BEFORE any authorization decision):
+  mirrors `app.claims_match_profile` 1:1 — a `platform_admin` caller
+  must carry the platform claim shape (null org/branch claims); an
+  `org_admin`/`cashier` caller must sit on an ACTIVE staff profile row
+  (`is_active = true`) whose role, org (and branch for a cashier; null
+  branch for org_admin) match the claims. Refusal is the function's
+  standard 403 body — no caller state leaks. Existing ordering preserved
+  (role gate → body schema → authorization matrix → shape/existence
+  checks); audit-row behavior unchanged; no authorization logic reads
+  user_metadata (unchanged); no service_role/secret key in any client or
+  committed test (unchanged). Redeployed with
+  `pnpm exec supabase functions deploy provision-staff --use-api` (flag
+  verified via `--help` at use time).
+- Green runs: the two guard-reachable variants now refuse **403**, the
+  active-org_admin control still provisions **200**, the stale-token
+  variant refuses (401 today; 403 under the guard if the auth server's
+  session check ever changes). The guard does not weaken the
+  authorization matrix — every prior refusal path is unchanged and the
+  full suite proves it.
+
+EVIDENCE 02f175a /Silid/supabase/functions/provision-staff/index.ts:78 — the caller-liveness guard: platform claim shape + active-staff-profile checks before any authorization decision (app.claims_match_profile mirrored)
+EVIDENCE 02f175a /Silid/packages/auth/test/regression.deactivatedCallerEdge.test.ts:1 — the deactivated-caller regression: red (200/200) pre-guard, green (403/403 + control 200) post-guard, against the deployed function
+
+**[m2 — MINOR] acceptance report refreshed and regenerated (never
+hand-edited):** `reports/proof/phase-03-results.json` updated to the
+phase's final state — the packages/auth suite at **53 passed | 1 logged
+skip** (54 tests, 7 files; the skip is the pre-existing real-signup attack
+with its logged `429 over_email_send_rate_limit` reason — the window is
+still closed), the suite-11 break-and-fix recorded in the capability lines
+it genuinely belongs to (claims 5/6/7: G5 cross-organization, G1/G6
+provisioning discipline, G8 stale-token), and the guard's EVIDENCE tags on
+the provisioning and deactivation lines. Clip references unchanged.
+`reports/phase-03-acceptance.md` regenerated by the generator CLI
+(`node packages/testing/src/acceptance-report.ts --phase-file
+roadmap/03-auth-platform-admin.md --results
+reports/proof/phase-03-results.json --out
+reports/phase-03-acceptance.md`): **ALL GREEN — 8/8 capability lines**;
+a second CLI run reproduced the file byte-identically.
+
+EVIDENCE 22f3c26 /Silid/reports/proof/phase-03-results.json:2 — the refreshed results file (final suite counts, suite-11 into claims 5/6/7, guard EVIDENCE)
+EVIDENCE 22f3c26 /Silid/reports/phase-03-acceptance.md:47 — regenerated verdict: ALL GREEN — 8/8 (byte-identical second CLI run)
+
+**[m1 — MINOR] migration-mirror provenance, recorded honestly (no file
+churn):** the repo mirror's MAIN-PASS files are a curated squash, not a
+one-for-one mirror: live `list_migrations` holds ten Phase-03-era entries
+including the intermediate applied iterations
+(restore_service_role_grants, staff_deactivation_revocation,
+claims_profile_binding, claims_profile_binding_definer,
+deactivate_staff_caller_binding, claims_profile_binding_claim_shape)
+while `supabase/migrations/` carries three squash files stamped with
+versions that exist in no live history (the superseded 20260925091000
+mirror was deleted in the main pass). The corrective-pass pair
+(20260925033754, 20260925034545) is one-for-one, as is everything this
+pass adds (an Edge Function change — no migration). Content-equivalence
+of the squash to the live history was verified by the review audit.
+CONVENTION from here on: future migrations go MCP-apply + verbatim
+one-for-one mirror; the main pass's squash is recorded as a curated
+equivalent whose applied intermediates remain visible in the project's
+migration history.
+
+**[o4 — OBSERVATION]:** `.tmp-pgtap-wrapped/` (the TAP-capture wrapper's
+output directory) added to `.gitignore`; `git check-ignore` confirms it
+no longer appears as a stray.
+
+EVIDENCE ef6ae04 /Silid/.gitignore:45 — the .tmp-pgtap-wrapped/ ignore rule (check-ignore verified)
+
+**Verification battery (all run live 2026-09-25 against the linked project
+`tymalzlhygkysdychbpv` and the workspace):**
+
+- `pnpm --filter @silid/auth test`: **53 passed | 1 skipped (54)**, 7/7
+  files — the four new deactivated-caller regression tests green against
+  the REDEPLOYED function; the one skip is the pre-existing logged
+  email-rate-limit skip. (One earlier full-suite re-run hit GoTrue's
+  request rate limit `over_request_rate_limit` from back-to-back live
+  runs — an infrastructure flake, not a code failure; the spaced runs
+  recorded here are the authoritative results.)
+- `pnpm test`: **13/13** turbo tasks (packages/auth 53 passed | 1 skipped
+  inside it; packages/testing 70/70; db/api coverage gates green).
+- `pnpm lint` 13/13; `pnpm check-types` 9/9; `pnpm rule-lint` clean (31
+  files).
+- pgTAP re-run live: suite 11 **57/57**, suite 02 **14/14**, suite 10
+  **19/19** (suite 11 via `supabase db query --linked --file
+  supabase/tests/11_attack_battery_phase03_test.sql`; 02/10 via the
+  TAP-capture wrapper, run after the wrapper regenerated
+  `.tmp-pgtap-wrapped/`). All three refreshed .tap artifacts came out
+  byte-identical to the committed ones (the suites are deterministic), so
+  the committed outputs remain the accurate evidence — nothing to commit
+  for them.
+- Residue discipline: the documented sweep ran after every live wave
+  (audit rows FIRST — `audit_log.org_id` holds an FK to organizations,
+  which is also why the in-test cleanup honestly reports
+  `{"organizations":N}` leftovers for suites whose audit rows pin their
+  fixture orgs; the sweep is the documented second stage in
+  attack.helpers.ts). Final live state: **0 test organizations, 0 staff
+  rows, 0 attack auth users, audit_log back at its 44-row baseline,
+  exactly 1 auth user (the operator seed)**.
+
+STATUS: DONE — all four review-gate findings fixed and verified: the
+caller-liveness guard (red→green live, suite 53 passed | 1 logged skip),
+the regenerated report (ALL GREEN 8/8, byte-identical rerun), the
+mirror-convention statement (this entry), and the ignore rule. The ledger
+header remains the runner's to flip at the phase close;
+`tripwire-registry.json` shows as modified in the working tree — this
+session never read or wrote it — and the untracked `.zcodeignore` stray
+was left alone.
