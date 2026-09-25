@@ -213,18 +213,47 @@ function renderCapabilityLine(
   ].join("\n");
 }
 
+/** A recorded no-clip disposition: the honest, visible way a capability
+ *  with no UI links its proof instead of a clip — the gate-accepted
+ *  database-phase precedent ("none recorded — the proof is pgTAP suite
+ *  10"). The em-dash reason is mandatory and is rendered verbatim in the
+ *  report so the client sees what proves the line instead. A bare "none
+ *  recorded" is the placeholder form and proves nothing. */
+const CLIP_DISPOSITION_RE = /^none recorded — \S/;
+
+/** True when a proof slot holds a placeholder: empty/whitespace, or a
+ *  "none recorded" claim in any form. The reasoned disposition form is
+ *  legitimate in the clip slot only — the attack-test and EVIDENCE slots
+ *  must reference real artifacts on every green line. */
+function isPlaceholderSlot(value: string | undefined): boolean {
+  const trimmed = value?.trim() ?? "";
+  return trimmed === "" || /^none recorded\b/i.test(trimmed);
+}
+
+/** The clip slot counts as proven when it cites a clip path or carries
+ *  the explicit recorded disposition with its reason. */
+function clipSlotProven(clip: string | undefined): boolean {
+  const trimmed = (clip ?? "").trim();
+  if (trimmed === "") return false;
+  if (/^none recorded\b/i.test(trimmed)) {
+    return CLIP_DISPOSITION_RE.test(trimmed);
+  }
+  return true;
+}
+
 /** A capability line counts green only when all three proof slots carry
  *  recorded proof (spec/00-master-goal.md, ACCEPTANCE REPORTS & PROOF
  *  CLIPS: every line links its clip, its attack test, and its EVIDENCE
- *  tag). An empty slot is "none recorded" and can never be green. */
+ *  tag). The clip slot is satisfied by a real clip path OR the explicit
+ *  recorded "none recorded — <reason>" disposition (rendered verbatim);
+ *  the attack-test and EVIDENCE slots must always reference real,
+ *  non-placeholder artifacts. Empty slots and bare "none recorded"
+ *  placeholders can never be green. */
 function isFullyProven(result: CapabilityResult): boolean {
   return (
-    typeof result.clip === "string" &&
-    result.clip.trim() !== "" &&
-    typeof result.attackTest === "string" &&
-    result.attackTest.trim() !== "" &&
-    typeof result.evidence === "string" &&
-    result.evidence.trim() !== ""
+    clipSlotProven(result.clip) &&
+    !isPlaceholderSlot(result.attackTest) &&
+    !isPlaceholderSlot(result.evidence)
   );
 }
 
@@ -302,7 +331,7 @@ export function buildAcceptanceReport(model: AcceptanceReportModel): string {
       );
     } else if (result.status === "pass" && !isFullyProven(result)) {
       lineBits.push(
-        `  - PROOF INCOMPLETE: a green line requires a recorded proof clip, its attack test, and an EVIDENCE tag — every slot empty is "none recorded" and cannot count as green.`,
+        `  - PROOF INCOMPLETE: a green line requires a real attack test and an EVIDENCE tag, plus a proof clip that either cites a committed clip path or carries the explicit recorded disposition "none recorded — <what proves it instead>" (rendered verbatim; a bare "none recorded" or an empty slot cannot count as green).`,
       );
     }
     const countsGreen =

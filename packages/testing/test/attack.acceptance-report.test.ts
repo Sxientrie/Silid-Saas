@@ -228,4 +228,27 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
     expect(run.code).toBe(0);
     expect(run.report).not.toContain("ALL GREEN");
   });
+
+  it(
+    "the no-clip disposition convention must not launder missing attack tests or bare placeholders",
+    () => {
+      const run = runGenerator(
+        BUILDER_PHASE_FILE,
+        join(ATTACKER_REPORT, "results-none-recorded-slots.json"),
+        "none-recorded-slots.md",
+      );
+      // Convention (implemented 2026-09-25, the database-phase precedent):
+      // a clip slot may carry "none recorded — <reason>" for a capability
+      // with no UI — but capability one here carries the BARE "none
+      // recorded" (no reason: a placeholder, not a disposition), and
+      // capability two tries to dodge the mandatory attack test with a
+      // "none recorded — ..." string in the attack-test slot. Neither may
+      // count green: dispositions live in the clip slot only, the reason
+      // is mandatory, and the attack-test/EVIDENCE slots must reference
+      // real artifacts.
+      expect(run.code).toBe(0);
+      expect(run.report).toContain("PROOF INCOMPLETE");
+      expect(run.report).not.toContain("ALL GREEN");
+    },
+  );
 });

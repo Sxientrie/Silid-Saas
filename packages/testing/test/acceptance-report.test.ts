@@ -124,6 +124,82 @@ describe("buildAcceptanceReport", () => {
   });
 });
 
+describe("proof-slot convention — recorded no-clip dispositions", () => {
+  // The gate-accepted database-phase precedent: a capability with no UI has
+  // no clip, and the report records that HONESTLY and VISIBLY — the clip
+  // slot carries "none recorded — <what proves it instead>" with the reason
+  // rendered verbatim. A real attack test and a real EVIDENCE tag remain
+  // mandatory on every green line (spec/00-master-goal.md, ACCEPTANCE
+  // REPORTS & PROOF CLIPS).
+  const REAL_ATTACK =
+    "test/attack-fixture.spec.ts > fixture capability one survives the attack";
+  const REAL_EVIDENCE =
+    "EVIDENCE 0000000 /Silid/packages/testing/test/fixtures/phase-00-fixture.md:11 — fixture evidence line";
+
+  function modelWithSlots(overrides: {
+    clip?: string;
+    attackTest?: string;
+    evidence?: string;
+  }): AcceptanceReportModel {
+    const model = fixtureModel();
+    model.results = [
+      {
+        input: "The fixture capability one passes with a recorded clip.",
+        status: "pass",
+        attackTest: REAL_ATTACK,
+        evidence: REAL_EVIDENCE,
+        ...overrides,
+      },
+      ...model.results.slice(1),
+    ];
+    return model;
+  }
+
+  it("a clip disposition beginning 'none recorded — ' counts green and renders verbatim", () => {
+    const disposition =
+      "none recorded — the proof is pgTAP suite 10 (database phase, no UI)";
+    const report = buildAcceptanceReport(modelWithSlots({ clip: disposition }));
+    expect(report).toContain(`proof clip: ${disposition}`);
+    expect(reportVerdict(report)).toBe("ALL GREEN");
+  });
+
+  it("a bare 'none recorded' clip without a reason does not count green", () => {
+    const report = buildAcceptanceReport(
+      modelWithSlots({ clip: "none recorded" }),
+    );
+    expect(report).toContain("PROOF INCOMPLETE");
+    expect(reportVerdict(report)).toBe("NOT GREEN");
+  });
+
+  it("a truly empty clip slot does not count green", () => {
+    const report = buildAcceptanceReport(modelWithSlots({ clip: "" }));
+    expect(report).toContain("PROOF INCOMPLETE");
+    expect(reportVerdict(report)).toBe("NOT GREEN");
+  });
+
+  it("a 'none recorded — ' disposition cannot stand in for a real attack test", () => {
+    const report = buildAcceptanceReport(
+      modelWithSlots({
+        clip: "reports/proof/e2e/fixture/fixture-one/video.webm",
+        attackTest: "none recorded — the proof is the fixture suite instead",
+      }),
+    );
+    expect(report).toContain("PROOF INCOMPLETE");
+    expect(reportVerdict(report)).toBe("NOT GREEN");
+  });
+
+  it("a 'none recorded — ' disposition cannot stand in for a real EVIDENCE tag", () => {
+    const report = buildAcceptanceReport(
+      modelWithSlots({
+        clip: "reports/proof/e2e/fixture/fixture-one/video.webm",
+        evidence: "none recorded — the proof is the recorded hosted run instead",
+      }),
+    );
+    expect(report).toContain("PROOF INCOMPLETE");
+    expect(reportVerdict(report)).toBe("NOT GREEN");
+  });
+});
+
 describe("acceptance-report CLI", () => {
   it("compiles the fixture phase into a well-formed report file", () => {
     const outDir = mkdtempSync(join(tmpdir(), "silid-acceptance-"));
