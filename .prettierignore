@@ -1,0 +1,11 @@
+# Prettier ships no init command, so no generator produces this file
+# (GENERATOR-FIRST RULE no-generator rationale, logged to PROGRESS.md
+# 2026-09-25). It exists for one purpose: the root package.json `format`
+# script's glob ("**/*.{ts,tsx,md}") reaches every markdown file in the
+# repository, and /Silid/legacy is the read-only behavioral reference the
+# Legacy Porting Prohibition forbids modifying (spec/monorepo-structure.md
+# §5 excludes it from every build, lint, coverage, mutation, and test
+# glob — formatting is the same exclusion). Verified 2026-09-25: before
+# this file existed, `prettier --check "**/*.{ts,tsx,md}"` flagged 137
+# files under legacy/; after it, zero.
+/legacy/
