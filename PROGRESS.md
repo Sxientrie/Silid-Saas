@@ -1616,3 +1616,77 @@ EVIDENCE 614f1b2 /Silid/supabase/tests/10_staff_deactivation_test.sql:1 — suit
 EVIDENCE 614f1b2 /Silid/reports/proof/pgtap/phase-03/02_tenant_isolation_test.tap:1 — full TAP outputs for all ten suites (145 assertions green)
 
 STATUS: DONE — Deliverables 3 and 4.
+
+### 2026-09-25 — Deliverables 5+6+7: Platform Admin portal, E2E clips, isolation proof — DONE
+
+- **Deliverable 5 (Platform Admin v1)**, spec/applications.md §1 scope
+  exactly: shadcn CLI run in apps/platform-admin (`init` — radix base/nova
+  preset, matching the Phase 01 provenance — then `add button input label
+  card table badge`; output committed verbatim before customization).
+  Surfaces: sign-in (email/password via the managed browser client);
+  organizations list; organization detail with status control
+  (active/suspended), branch management, staff list, and the
+  provision-administrator form. Architecture per the three layers:
+  **Layer 2** — Next.js 16's Proxy convention (`src/proxy.ts`; the renamed
+  middleware — verified against the live SSR docs) guards every route with
+  `auth.getClaims()` (JWT-signature-validated), redirects anonymous to
+  /signin and returns an explicit 403 for non-platform roles (no redirect
+  loop); **Layer 1** — every server action re-resolves the operator from
+  verified claims before writing; **Layer 3** — all reads/writes run as the
+  signed-in user through RLS; provisioning goes through the provision-staff
+  Edge Function. Platform-tier actions (create org, set status, add branch)
+  write audit rows with null org/branch (spec/multi-tenancy.md §5). No
+  audit-review UI, no platform-billing surface, no Landing changes.
+- Compatibility fixes found by the build (Improve step): Turbopack cannot
+  map NodeNext's `.js`-extension imports — packages/auth switched to
+  moduleResolution Bundler + extensionless internal imports (the
+  packages/testing Phase 01 precedent; the only plain-Node consumer, the
+  seed CLI, has no relative imports); the server client cookie adapter
+  wraps next/headers per the documented shape (readonly arrays; copy at
+  the @supabase/ssr boundary).
+- **Deliverable 6 (E2E with recorded clips)**:
+  tests/platform-admin/operator-flow.spec.ts runs the REAL flow against the
+  linked project through the running UI: operator signs in → creates the
+  organization → suspends it → reactivates it (status proof) → adds a
+  branch → provisions the org-admin → the operator also creates a second
+  organization → sign-out. Playwright fixes found by running it:
+  `describe.skipIf` is vitest-only (Playwright uses `test.skip(condition)`
+  inside the describe), and the chromium headless-shell binary needed a
+  one-time `playwright install chromium`.
+- **Deliverable 7 (isolation through the UI path AND the database path)**:
+  - UI/browser path: after the provisioned org-admin signs in, the portal
+    refuses them (the Layer 2 403 — "Not authorized" visible in the clip),
+    and from the same browser origin the test calls the exact PostgREST
+    endpoints a UI would call with the org-admin's token: their own
+    organization returns its row (200, one entry), the operator's second
+    organization returns **[]** — raw response captured in the run log.
+  - Database path: suite 02's cross-tenant assertions (14/14) plus suite
+    10's binding/deactivation assertions (19/19) — 145 total green pgTAP
+    assertions across all ten suites (previous entry).
+- Verify (all live): workspace `pnpm lint` 13/13, `pnpm check-types` 9/9,
+  `pnpm test` 13/13 (auth 20/20 incl. the six provisioning integration
+  proofs), `pnpm mutation` 2/2 (db 92.68% ≥ 80), `pnpm build` 3/3,
+  **`pnpm test:e2e` 4/4** (landing smoke, frontdesk smoke, platform-admin
+  smoke, platform-admin operator flow), recorded clips refreshed under
+  reports/proof/e2e/ (two platform-admin clips incl. the operator flow).
+  Fixture hygiene: the linked project ends with 0 test organizations, 0
+  test staff rows, 0 leaked auth users (afterAll deletes children first
+  and deletes the provisioned identity by email match; two users leaked by
+  the earlier failed runs were deleted manually).
+- user_metadata grep proof (DoD): grep artifact at
+  reports/proof/phase-03-user-metadata-grep.txt — user_metadata appears
+  ONLY in test assertions that prove forged user_metadata is ignored, a
+  claims.ts doc comment, and a migration comment; zero authorization
+  decisions read it. Authorization reads app_metadata exclusively
+  (packages/auth claim readers; app.claim_* SQL helpers).
+- Advisors re-run after the RLS changes: security — the one pre-existing
+  WARN (leaked-password protection, an auth-config dashboard toggle carried
+  to Phase 11); performance — unused-index INFOs only (empty database).
+
+EVIDENCE 7d88f1f /Silid/apps/platform-admin/src/app/(admin)/actions.ts:1 — server actions with claims-based guards and platform audit rows
+EVIDENCE 7d88f1f /Silid/apps/platform-admin/src/proxy.ts:1 — Layer 2 proxy guard (Next 16 convention)
+EVIDENCE f64aad6 /Silid/reports/proof/e2e/platform-admin-operator-fl-5cde3-ees-only-their-organization-platform-admin/video.webm:1 — the operator flow clip (create/status/branch/provision/refusal/isolation)
+EVIDENCE f64aad6 /Silid/tests/platform-admin/operator-flow.spec.ts:1 — the E2E source: browser-path isolation assertions (own org visible, second org [])
+
+STATUS: DONE — Deliverables 5, 6, and 7. All seven Phase 03 deliverables
+closed; remaining: acceptance report draft and the phase close-out entry.
