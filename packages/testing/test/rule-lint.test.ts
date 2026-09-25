@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   checkAcceptanceInputSentences,
@@ -66,9 +68,16 @@ describe("checkEvidenceTags", () => {
   });
 
   it("accepts a DONE block with a well-formed EVIDENCE tag", () => {
+    // "Well-formed" is now resolvable, not merely shaped: the tag must cite
+    // a /Silid/ path that exists in the cited commit's tree. The fixture
+    // cites the current HEAD and a file every commit carries.
+    const headSha = execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+      cwd: resolve(import.meta.dirname, "../../.."),
+      encoding: "utf8",
+    }).trim();
     const violations = checkEvidenceTags(
       "PROGRESS.md",
-      "### Task one\n\nEVIDENCE abc1234 /Silid/file.ts:1 — proof\n\nSTATUS: DONE — Deliverable X.\n",
+      `### Task one\n\nEVIDENCE ${headSha} /Silid/package.json:1 — proof\n\nSTATUS: DONE — Deliverable X.\n`,
     );
     expect(violations).toEqual([]);
   });

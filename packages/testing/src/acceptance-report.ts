@@ -59,38 +59,82 @@ export function normalizeSentence(sentence: string): string {
 
 /**
  * Extracts the acceptance-input sentences from a phase file's
- * "## Acceptance-report inputs" section (bullets, optionally quoted,
- * possibly soft-wrapped across continuation lines).
+ * "## Acceptance-report inputs" sections (bullets, optionally quoted,
+ * possibly soft-wrapped across continuation lines). EVERY matching section
+ * is parsed — a duplicate or alternate-spelled section is never silently
+ * ignored, so an input hidden in a second section cannot escape the
+ * single-sentence rule or the report.
  */
 export function parseAcceptanceInputs(phaseFileMarkdown: string): string[] {
-  const sectionStart =
-    /^##\s+Acceptance-report inputs\s*$/im.exec(phaseFileMarkdown);
-  if (!sectionStart || sectionStart.index === undefined) return [];
-  const rest = phaseFileMarkdown.slice(
-    sectionStart.index + sectionStart[0].length,
+  return acceptanceInputSections(phaseFileMarkdown).flatMap(
+    (section) => section.inputs,
   );
-  const nextSection = /^##\s/m.exec(rest);
-  const section = nextSection ? rest.slice(0, nextSection.index) : rest;
+}
 
-  const inputs: string[] = [];
-  let current: string[] | null = null;
-  for (const line of section.split(/\r?\n/)) {
-    const bullet = /^[ \t]*-[ \t]+(.*)$/.exec(line);
-    if (bullet) {
-      if (current) inputs.push(current.join(" "));
-      current = [bullet[1]!];
-    } else if (current && line.trim() !== "") {
-      current.push(line.trim());
-    } else if (current && line.trim() === "") {
-      inputs.push(current.join(" "));
-      current = null;
+export interface AcceptanceInputSection {
+  inputs: string[];
+  /** The 1-based line number each bullet starts on. */
+  bulletLines: number[];
+}
+
+// Global so the multi-section scan's exec loop advances (a non-global
+// regex ignores lastIndex and would match the first heading forever).
+const ACCEPTANCE_HEADING_RE = /^##\s+Acceptance[- ]report inputs[ \t]*$/gim;
+
+/** Locates and parses every acceptance-inputs section of a phase file. */
+export function acceptanceInputSections(
+  phaseFileMarkdown: string,
+): AcceptanceInputSection[] {
+  const sections: AcceptanceInputSection[] = [];
+  const heading = ACCEPTANCE_HEADING_RE;
+  heading.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = heading.exec(phaseFileMarkdown)) !== null) {
+    const bodyStart = match.index + match[0].length;
+    const rest = phaseFileMarkdown.slice(bodyStart);
+    const nextSection = /^##\s/m.exec(rest);
+    const sectionText = nextSection ? rest.slice(0, nextSection.index) : rest;
+
+    const inputs: string[] = [];
+    const bulletLines: number[] = [];
+    let current: string[] | null = null;
+    let currentLine = 0;
+    const lines = sectionText.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      const bullet = /^[ \t]*-[ \t]+(.*)$/.exec(line);
+      if (bullet) {
+        if (current) inputs.push(current.join(" "));
+        current = [bullet[1]!];
+        // +1 for the 1-based count, +1 to skip the heading line itself.
+        currentLine = bodyStartOffset(phaseFileMarkdown, bodyStart) + i + 1;
+        bulletLines.push(currentLine);
+      } else if (current && line.trim() !== "") {
+        current.push(line.trim());
+      } else if (current && line.trim() === "") {
+        inputs.push(current.join(" "));
+        current = null;
+      }
     }
+    if (current) inputs.push(current.join(" "));
+    sections.push({
+      inputs: inputs
+        .map((input) => input.replace(/\s+/g, " ").trim())
+        .filter((input) => input !== "")
+        .map((input) =>
+          /^".*"$/s.test(input) ? input.slice(1, -1).trim() : input,
+        ),
+      bulletLines,
+    });
+    // Continue the global scan AFTER this heading so the same heading is
+    // never matched twice.
+    heading.lastIndex = bodyStart;
   }
-  if (current) inputs.push(current.join(" "));
-  return inputs
-    .map((input) => input.replace(/\s+/g, " ").trim())
-    .filter((input) => input !== "")
-    .map((input) => (/^".*"$/s.test(input) ? input.slice(1, -1).trim() : input));
+  return sections;
+}
+
+function bodyStartOffset(text: string, bodyStart: number): number {
+  return text.slice(0, bodyStart).split(/\r?\n/).length - 1;
 }
 
 /** Parses and validates a results JSON file's text. */
@@ -169,12 +213,73 @@ function renderCapabilityLine(
   ].join("\n");
 }
 
+/** A capability line counts green only when all three proof slots carry
+ *  recorded proof (spec/00-master-goal.md, ACCEPTANCE REPORTS & PROOF
+ *  CLIPS: every line links its clip, its attack test, and its EVIDENCE
+ *  tag). An empty slot is "none recorded" and can never be green. */
+function isFullyProven(result: CapabilityResult): boolean {
+  return (
+    typeof result.clip === "string" &&
+    result.clip.trim() !== "" &&
+    typeof result.attackTest === "string" &&
+    result.attackTest.trim() !== "" &&
+    typeof result.evidence === "string" &&
+    result.evidence.trim() !== ""
+  );
+}
+
+const MUTATION_KILL_RATE_THRESHOLD = 80;
+
+/**
+ * Cross-checks a gate's recorded detail against the status it claims, so a
+ * detail that contradicts its own status cannot ride a PASS label into an
+ * ALL GREEN verdict. Fail-closed: a "pass" gate whose detail cannot be
+ * verified is treated as not verified.
+ */
+export function gateDetailVerified(gate: GateResult): boolean {
+  if (gate.status !== "pass") return true;
+  const detail = gate.detail;
+  // The money gate's pass must affirm zero drift; any positive drift
+  // figure contradicts it.
+  if (/(zero|no) drift/i.test(detail)) return true;
+  const drift = /diff\s*=\s*(\d+(?:\.\d+)?)/i.exec(detail);
+  if (drift) return Number(drift[1]) === 0;
+  if (/drift/i.test(detail)) return false;
+  // The mutation gate's pass must show a kill rate at or above the spec
+  // threshold (the threshold percentage a detail may also cite must never
+  // stand in for the gate's own rate).
+  const labeled = /kill rate\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*%/i.exec(detail);
+  const percent = labeled ?? /(\d+(?:\.\d+)?)\s*%/.exec(detail);
+  if (percent) {
+    return Number(percent[1]) >= MUTATION_KILL_RATE_THRESHOLD;
+  }
+  // Unverifiable pass detail: fail closed.
+  return false;
+}
+
 /** Compiles the acceptance-report markdown for a phase. */
 export function buildAcceptanceReport(model: AcceptanceReportModel): string {
-  const byInput = new Map<string, CapabilityResult>();
+  // Results are grouped by normalized input. Duplicate entries for one
+  // capability are a recorded conflict: the verdict can never be green and
+  // the conflict is rendered, never silently last-entry-wins.
+  const byInput = new Map<string, CapabilityResultRecord[]>();
+  const unmatched: CapabilityResultRecord[] = [];
+  const inputKeys = new Set(model.inputs.map(normalizeSentence));
   for (const result of model.results) {
-    byInput.set(normalizeSentence(result.input), result);
+    const key = normalizeSentence(result.input);
+    if (!inputKeys.has(key)) {
+      unmatched.push(result);
+      continue;
+    }
+    const group = byInput.get(key) ?? [];
+    group.push(result);
+    byInput.set(key, group);
   }
+  const severity = (status: string): number =>
+    status === "fail" ? 0 : status === "blocked" ? 1 : 2;
+  const worstOf = (group: CapabilityResultRecord[]): CapabilityResultRecord =>
+    [...group].sort((a, b) => severity(a.status) - severity(b.status))[0]!;
+
   const lines: string[] = [];
   lines.push(
     `# Phase ${model.phase} — Client Acceptance Report`,
@@ -186,11 +291,26 @@ export function buildAcceptanceReport(model: AcceptanceReportModel): string {
   let green = 0;
   const capabilityLines: string[] = [];
   for (const sentence of model.inputs) {
-    const result =
-      byInput.get(normalizeSentence(sentence)) ??
-      ({ status: "blocked" } as CapabilityResult);
-    if (result.status === "pass") green += 1;
-    capabilityLines.push(renderCapabilityLine(sentence, result));
+    const group = byInput.get(normalizeSentence(sentence));
+    const result = group
+      ? worstOf(group)
+      : ({ status: "blocked" } as CapabilityResult);
+    const lineBits = [renderCapabilityLine(sentence, result)];
+    if (group && group.length > 1) {
+      lineBits.push(
+        `  - CONFLICT: ${group.length} results recorded for this capability (case/spacing variants included) — the verdict cannot be green until one result is recorded.`,
+      );
+    } else if (result.status === "pass" && !isFullyProven(result)) {
+      lineBits.push(
+        `  - PROOF INCOMPLETE: a green line requires a recorded proof clip, its attack test, and an EVIDENCE tag — every slot empty is "none recorded" and cannot count as green.`,
+      );
+    }
+    const countsGreen =
+      result.status === "pass" &&
+      isFullyProven(result) &&
+      (!group || group.length === 1);
+    if (countsGreen) green += 1;
+    capabilityLines.push(lineBits.join("\n"));
   }
   lines.push("## Capabilities", "", ...capabilityLines, "");
 
@@ -199,11 +319,45 @@ export function buildAcceptanceReport(model: AcceptanceReportModel): string {
   lines.push(renderGateLine("MUTATION GATE", model.mutationGate));
   lines.push("");
 
-  const verdict = green === model.inputs.length ? "ALL GREEN" : "NOT GREEN";
+  const gatesOk =
+    model.moneyGate.status !== "fail" &&
+    model.mutationGate.status !== "fail" &&
+    gateDetailVerified(model.moneyGate) &&
+    gateDetailVerified(model.mutationGate);
+
+  if (unmatched.length > 0) {
+    lines.push("## Unmatched results", "");
+    lines.push(
+      "These recorded results match no acceptance input of this phase file — a drifted sentence must never silently swallow a recorded result:",
+      "",
+    );
+    for (const entry of unmatched) {
+      lines.push(
+        `- **${entry.status.toUpperCase()}** — ${entry.input} (status as recorded; the capability sentence no longer matches)`,
+      );
+    }
+    lines.push("");
+  }
+
+  const allCapabilitiesGreen = green === model.inputs.length;
+  const verdict =
+    allCapabilitiesGreen && gatesOk && unmatched.length === 0
+      ? "ALL GREEN"
+      : "NOT GREEN";
+  const reasons: string[] = [];
+  if (!allCapabilitiesGreen) {
+    reasons.push(`${green}/${model.inputs.length} capability lines green`);
+  }
+  if (!gatesOk) {
+    reasons.push("a gate failed or its detail contradicts its status");
+  }
+  if (unmatched.length > 0) {
+    reasons.push(`${unmatched.length} recorded result(s) match no acceptance input`);
+  }
   lines.push(
     "## Verdict",
     "",
-    `${verdict} — ${green}/${model.inputs.length} capability lines green. ` +
+    `${verdict} — ${reasons.join("; ") || "everything recorded is green"}. ` +
       `Every line must be green (and every clip play) before the phase closes.`,
     "",
   );

@@ -11,8 +11,9 @@
 
 import { readFileSync, readdirSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { parseAcceptanceInputs } from "./acceptance-report.ts";
+import { acceptanceInputSections } from "./acceptance-report.ts";
 
 export interface LintViolation {
   file: string;
@@ -96,74 +97,123 @@ export function checkTerminology(
 }
 
 /**
- * Every task block in PROGRESS.md whose closing STATUS line claims DONE
- * must contain at least one well-formed EVIDENCE tag
- * (spec/builder-protocol.md §1).
+ * Every DONE completion claim in PROGRESS.md must carry at least one
+ * resolvable EVIDENCE tag (spec/builder-protocol.md §1). A claim is any
+ * line asserting a completed status, in any task-block shape — under a
+ * heading of any level, a bold task header, or a bullet-style task line —
+ * and case does not excuse it. A tag resolves only when it is well formed
+ * (a 7-40 hex sha, a /Silid/-rooted path with a :line suffix — the
+ * project's recorded path convention) AND the cited path exists in that
+ * commit's tree (`git cat-file -e <sha>:<path>`): a tag pointing at a
+ * path that was never committed, or at no commit at all, is not evidence.
  */
+const DONE_CLAIM_RE = /\bstatus\s*:\s*done\b/i;
+const EVIDENCE_TAG_RE =
+  /EVIDENCE\s+([0-9a-f]{7,40})\s+(\/Silid\/[^\s]+?):(\d+)(?=\s|$)/g;
+
+const tagResolutionCache = new Map<string, boolean>();
+
+function evidenceTagResolves(sha: string, repoPath: string): boolean {
+  const cacheKey = `${sha}:${repoPath}`;
+  const cached = tagResolutionCache.get(cacheKey);
+  if (cached !== undefined) return cached;
+  let resolves = false;
+  try {
+    execFileSync("git", ["cat-file", "-e", `${sha}:${repoPath}`], {
+      stdio: "ignore",
+    });
+    resolves = true;
+  } catch {
+    resolves = false;
+  }
+  tagResolutionCache.set(cacheKey, resolves);
+  return resolves;
+}
+
+function hasResolvableEvidenceTag(regionText: string): boolean {
+  EVIDENCE_TAG_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = EVIDENCE_TAG_RE.exec(regionText)) !== null) {
+    const sha = match[1]!;
+    const repoPath = match[2]!.replace(/^\/Silid\//, "");
+    if (evidenceTagResolves(sha, repoPath)) return true;
+  }
+  return false;
+}
+
 export function checkEvidenceTags(
   file: string,
   text: string,
 ): LintViolation[] {
   const violations: LintViolation[] = [];
   const allLines = text.split(/\r?\n/);
-  const blocks = text.split(/^### /m).slice(1);
-  let searchOffset = 0;
-  blocks.forEach((block) => {
-    const statusLine = block
-      .split(/\r?\n/)
-      .find((line) => line.startsWith("STATUS:"));
-    if (!statusLine || !/\bDONE\b/.test(statusLine)) {
-      searchOffset += block.length;
-      return;
+  const isHeading = (line: string): boolean => /^#{1,6}\s/.test(line);
+
+  const claimIndexes = allLines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => DONE_CLAIM_RE.test(line))
+    .map(({ index }) => index);
+
+  for (const claimIndex of claimIndexes) {
+    // The claim's region spans from the enclosing boundary above (a
+    // heading of any level or a preceding claim) to the boundary below —
+    // EVIDENCE tags may sit before or after the STATUS line inside it.
+    let start = claimIndex;
+    while (
+      start > 0 &&
+      !isHeading(allLines[start - 1]!) &&
+      !DONE_CLAIM_RE.test(allLines[start - 1]!)
+    ) {
+      start -= 1;
     }
-    if (!/\bEVIDENCE\s+[0-9a-f]{7,40}\s+\S+:\d+/.test(block)) {
-      const lineIndex = allLines.findIndex((l) => l === statusLine);
+    let end = claimIndex;
+    while (
+      end < allLines.length - 1 &&
+      !isHeading(allLines[end + 1]!) &&
+      !DONE_CLAIM_RE.test(allLines[end + 1]!)
+    ) {
+      end += 1;
+    }
+    const region = allLines.slice(start, end + 1).join("\n");
+    if (!hasResolvableEvidenceTag(region)) {
       violations.push({
         file,
-        line: lineIndex + 1,
+        line: claimIndex + 1,
         rule: "evidence-tag-missing",
-        message: `task block claims DONE ("${statusLine.slice(0, 70)}") without a resolvable EVIDENCE tag (spec/builder-protocol.md §1)`,
+        message: `DONE claim ("${allLines[claimIndex]!.trim().slice(0, 70)}") without a resolvable EVIDENCE tag (spec/builder-protocol.md §1)`,
       });
     }
-    searchOffset += block.length;
-  });
+  }
   return violations;
 }
 
 /**
  * Every acceptance input must be a single, observable, falsifiable
  * sentence — exactly one sentence terminator, at the end
- * (spec/builder-protocol.md §5).
+ * (spec/builder-protocol.md §5). Every acceptance-inputs section of the
+ * file is scanned (duplicate or alternate-spelled headings included), so
+ * a violating input cannot hide in a second section.
  */
 export function checkAcceptanceInputSentences(
   file: string,
   text: string,
 ): LintViolation[] {
   const violations: LintViolation[] = [];
-  const inputs = parseAcceptanceInputs(text);
-  if (inputs.length === 0) return violations;
-  const sectionStart =
-    /^##\s+Acceptance-report inputs\s*$/im.exec(text)?.index ?? 0;
-  const afterSection = text.slice(sectionStart);
-  const inputLines: number[] = [];
-  const bulletRe = /^([ \t]*)-[ \t]+/gm;
-  let bulletMatch: RegExpExecArray | null;
-  while ((bulletMatch = bulletRe.exec(afterSection)) !== null) {
-    const absolute = sectionStart + bulletMatch.index;
-    inputLines.push(text.slice(0, absolute).split(/\r?\n/).length);
+  const sections = acceptanceInputSections(text);
+  if (sections.length === 0) return violations;
+  for (const section of sections) {
+    section.inputs.forEach((input, i) => {
+      const stripped = /^".*"$/s.test(input) ? input.slice(1, -1).trim() : input;
+      if (!isSingleSentence(stripped)) {
+        violations.push({
+          file,
+          line: section.bulletLines[i] ?? 1,
+          rule: "acceptance-input-sentence",
+          message: `acceptance input is not a single sentence: "${input.slice(0, 80)}" (spec/builder-protocol.md §5)`,
+        });
+      }
+    });
   }
-  inputs.forEach((input, i) => {
-    const stripped = /^".*"$/s.test(input) ? input.slice(1, -1).trim() : input;
-    const single = isSingleSentence(stripped);
-    if (!single) {
-      violations.push({
-        file,
-        line: inputLines[i] ?? 1,
-        rule: "acceptance-input-sentence",
-        message: `acceptance input is not a single sentence: "${input.slice(0, 80)}" (spec/builder-protocol.md §5)`,
-      });
-    }
-  });
   return violations;
 }
 

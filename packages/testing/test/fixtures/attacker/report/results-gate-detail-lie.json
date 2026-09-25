@@ -1,0 +1,22 @@
+{
+  "phase": "00",
+  "phaseTitle": "Fixture",
+  "results": [
+    {
+      "input": "The fixture capability one passes with a recorded clip.",
+      "status": "pass",
+      "clip": "reports/proof/e2e/fixture/fixture-one/video.webm",
+      "attackTest": "t1",
+      "evidence": "EVIDENCE 0000000 /Silid/x.md:1 — e"
+    },
+    {
+      "input": "The fixture capability two recomputes every fixture figure.",
+      "status": "pass",
+      "clip": "reports/proof/e2e/fixture/fixture-two/video.webm",
+      "attackTest": "t2",
+      "evidence": "EVIDENCE 0000000 /Silid/x.md:2 — e"
+    }
+  ],
+  "moneyGate": { "status": "pass", "detail": "recomputed 4 figures, diff = 2 pesos (DRIFT)" },
+  "mutationGate": { "status": "pass", "detail": "kill rate 40.00% (2/5 mutants killed) versus the 80% threshold" }
+}

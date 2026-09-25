@@ -1,0 +1,22 @@
+{
+  "phase": "00",
+  "phaseTitle": "Fixture",
+  "results": [
+    {
+      "input": "The fixture capability one passes with a recorded clip.",
+      "status": "pass",
+      "clip": "",
+      "attackTest": "",
+      "evidence": ""
+    },
+    {
+      "input": "The fixture capability two recomputes every fixture figure.",
+      "status": "pass",
+      "clip": "reports/proof/e2e/ghost/does-not-exist/video.webm",
+      "attackTest": "t2",
+      "evidence": "EVIDENCE 0000000 /Silid/x.md:2 — e"
+    }
+  ],
+  "moneyGate": { "status": "not-applicable", "detail": "n/a" },
+  "mutationGate": { "status": "pass", "detail": "100%" }
+}
