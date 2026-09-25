@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the rule linter resolves EVIDENCE tags against git history (git cat-file); a shallow checkout breaks every historical tag
 
       - name: Install pnpm (packageManager field)
         uses: pnpm/action-setup@v4
