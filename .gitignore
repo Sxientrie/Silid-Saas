@@ -41,6 +41,9 @@ pnpm-debug.log*
 # Scaffolding staging
 .tmp-scaffold/
 
+# pgTAP TAP-capture wrapper output (packages/testing/src/wrap-pgtap-capture.mjs)
+.tmp-pgtap-wrapped/
+
 # Local env files
 .env
 .env.local
