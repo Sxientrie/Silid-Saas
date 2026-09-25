@@ -386,6 +386,28 @@ importers:
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@20.19.43)(@vitest/coverage-v8@5.0.1)(jsdom@30.1.0(@noble/hashes@1.8.0))(vite@8.3.0(@types/node@20.19.43)(esbuild@0.28.2)(jiti@2.7.0))
 
   packages/api:
+    dependencies:
+      '@silid/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@silid/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@silid/db':
+        specifier: workspace:*
+        version: link:../db
+      '@silid/schemas':
+        specifier: workspace:*
+        version: link:../schemas
+      '@supabase/supabase-js':
+        specifier: 2.117.1
+        version: 2.117.1(@opentelemetry/api@1.9.1)
+      '@trpc/server':
+        specifier: 11.19.0
+        version: 11.19.0(typescript@7.0.2)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@silid/config':
         specifier: workspace:*
@@ -407,6 +429,10 @@ importers:
         version: 5.0.1(@opentelemetry/api@1.9.1)(@types/node@26.6.2)(@vitest/coverage-v8@5.0.1)(jsdom@30.1.0(@noble/hashes@1.8.0))(vite@8.3.0(@types/node@26.6.2)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15))
 
   packages/audit:
+    dependencies:
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       '@silid/config':
         specifier: workspace:*
@@ -3416,6 +3442,12 @@ packages:
         optional: true
       '@types/react-dom':
         optional: true
+
+  '@trpc/server@11.19.0':
+    resolution: {integrity: sha512-7C1goiDurz82yFKtZUbEzjXd0Rg/jyisaIZQhdvus+1l7E6mwcEYZXjZ1US/HF8kOyz1LERL8UN3bcboJtjcyQ==}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=5.7.2'
 
   '@ts-morph/common@0.27.0':
     resolution: {integrity: sha512-Wf29UqxWDpc+i61k3oIOzcUfQt79PIT9y/MWfAGlrkjg6lBC1hwDECLXPVJAhWjiGbfBCxZd65F/LIZF3+jeJQ==}
@@ -9519,6 +9551,10 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.5(@types/react@19.2.18)
+
+  '@trpc/server@11.19.0(typescript@7.0.2)':
+    dependencies:
+      typescript: 7.0.2
 
   '@ts-morph/common@0.27.0':
     dependencies:
