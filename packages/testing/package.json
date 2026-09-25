@@ -18,6 +18,7 @@
   },
   "type": "module",
   "dependencies": {
-    "@silid/db": "workspace:*"
+    "@silid/db": "workspace:*",
+    "@silid/schemas": "workspace:*"
   }
 }

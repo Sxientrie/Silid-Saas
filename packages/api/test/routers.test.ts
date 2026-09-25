@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { TRPCError } from "@trpc/server";
-import { createTestCaller, type SilidDataClient } from "../src/index.js";
+import { createSilidCallerFactory, createTestCaller, type SilidDataClient } from "../src/index.js";
+import { appRouter } from "../src/app.router.js";
 import type { BranchWithRateConfig, RoomView, SessionView, StaffView } from "@silid/schemas";
 
 /**
@@ -168,6 +169,29 @@ describe("scope never trusts client identifiers (deterministic router contracts)
     const rooms = await caller.rooms.listRooms({ branchId: BRANCH_B1 });
     expect(data.roomFilters).toEqual([[BRANCH_B1]]);
     expect(rooms).toHaveLength(1);
+  });
+
+  it("the platform tier with no selector is served the full branch set", async () => {
+    const data = memoryDataClient();
+    const caller = platformCaller(data);
+    await caller.rooms.listRooms({});
+    expect(data.roomFilters).toEqual([[BRANCH_A1, BRANCH_A2, BRANCH_B1]]);
+  });
+
+  it("a non-org-tier caller on an org-tier surface is refused by role, before the data layer", async () => {
+    const data = memoryDataClient();
+    const platform = platformCaller(data);
+    await expect(platform.rates.updateRateConfig({ branchId: BRANCH_B1 })).rejects.toThrow(TRPCError);
+    expect(data.rateCalls).toEqual([]);
+    await expect(platform.rates.getRateConfig({ branchId: BRANCH_B1 })).rejects.toThrow(TRPCError);
+  });
+
+  it("a verified caller without a data client is refused like an anonymous one", async () => {
+    const caller = createSilidCallerFactory(appRouter)({
+      caller: { userId: STAFF_ID, claims: { role: "cashier", org_id: ORG_A, branch_id: BRANCH_A1 } },
+      data: null,
+    });
+    await expect(caller.rooms.listRooms({})).rejects.toHaveProperty("code", "UNAUTHORIZED");
   });
 
   it("an anonymous caller gets UNAUTHORIZED on every read procedure", async () => {

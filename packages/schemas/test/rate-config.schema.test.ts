@@ -6,6 +6,7 @@ import {
   updateRateConfigInputSchema,
   rateConfigSchema,
   readOverstayTriple,
+  normalizeMoneyText,
   type ExtensionOverridesInput,
 } from "../src/index.js";
 
@@ -140,14 +141,27 @@ describe("extension override validation (vault-07, §3.3)", () => {
       expect(extensionOverridesSchema.parse({})).toEqual({});
     });
 
-    it("round-trips the vault-07 default triple as accepted values", () => {
-      const result = extensionOverridesSchema.parse({
-        grace_minutes: "25",
-        block_minutes: "60",
-        block_charge: "150",
-      });
-      expect(result).toEqual({ grace_minutes: "25", block_minutes: "60", block_charge: "150" });
+  it("round-trips the vault-07 default triple as accepted values", () => {
+    const result = extensionOverridesSchema.parse({
+      grace_minutes: "25",
+      block_minutes: "60",
+      block_charge: "150",
     });
+    expect(result).toEqual({ grace_minutes: "25", block_minutes: "60", block_charge: "150" });
+  });
+
+  it("carries a specific refusal reason per §3.3 rule (the editor surfaces it)", () => {
+    const messageOf = (input: Record<string, unknown>): string => {
+      const result = extensionOverridesSchema.safeParse(input);
+      expect(result.success).toBe(false);
+      return result.success === false ? result.error.issues[0]!.message : "";
+    };
+    expect(messageOf({ grace_minutes: "25.0" })).toMatch(/digit-only/);
+    expect(messageOf({ block_minutes: "0" })).toMatch(/greater than zero/);
+    expect(messageOf({ block_charge: "-1" })).toMatch(/digits with optional decimals/);
+    expect(messageOf({ block_charge: "0.00" })).toMatch(/strictly positive/);
+    expect(messageOf({ block_charge: "1234567890.12" })).toMatch(/at most 12 characters/);
+  });
   });
 });
 
@@ -161,8 +175,12 @@ describe("canteen override validation (vault-08/20)", () => {
     expect(canteenOverridesSchema.safeParse({ unknown_item: "1" }).success).toBe(false);
   });
 
-  it("refuses negative prices", () => {
-    expect(canteenOverridesSchema.safeParse({ bottled_water: "-1" }).success).toBe(false);
+  it("refuses negative prices (the digit-only regex refuses signed text, as the database does)", () => {
+    const result = canteenOverridesSchema.safeParse({ bottled_water: "-1" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]!.message).toMatch(/must be digits with optional decimals/);
+    }
   });
 
   it("accepts zero (the database accepts a zero canteen price; vault-08 boundary)", () => {
@@ -286,5 +304,27 @@ describe("readOverstayTriple — effective §3.3 fallback semantics (display par
 
   it("never charges per-minute (a zero block length falls back to 60)", () => {
     expect(readOverstayTriple({ extension: { block_minutes: "0" } }).blockMinutes).toBe(60);
+  });
+
+  it("falls back for garbage-suffixed text instead of trusting parseInt's partial parse", () => {
+    expect(
+      readOverstayTriple({ extension: { grace_minutes: "2abc", block_minutes: "5abc", block_charge: "1abc" } }),
+    ).toEqual({ graceMinutes: 25, blockMinutes: 60, blockCharge: 150 });
+  });
+
+  it("handles a null or undefined card and number-form stored scalars", () => {
+    expect(readOverstayTriple(null)).toEqual({ graceMinutes: 25, blockMinutes: 60, blockCharge: 150 });
+    expect(readOverstayTriple(undefined)).toEqual({ graceMinutes: 25, blockMinutes: 60, blockCharge: 150 });
+    expect(
+      readOverstayTriple({ extension: { grace_minutes: 10, block_minutes: 45, block_charge: 200 } }),
+    ).toEqual({ graceMinutes: 10, blockMinutes: 45, blockCharge: 200 });
+  });
+
+  it("normalizes money text at the boundaries of the trailing-zero rule", () => {
+    expect(normalizeMoneyText("150.50")).toBe("150.5");
+    expect(normalizeMoneyText("150.0")).toBe("150");
+    expect(normalizeMoneyText("150")).toBe("150");
+    expect(normalizeMoneyText("0.500")).toBe("0.5");
+    expect(normalizeMoneyText(".")).toBe("0");
   });
 });

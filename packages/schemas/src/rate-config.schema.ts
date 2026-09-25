@@ -17,7 +17,7 @@
  * way the vault records it: "150.50" is accepted as "150.5".
  */
 import { z } from "zod";
-import { CANTEEN_CATALOGUE } from "@silid/db";
+import { CANTEEN_CATALOGUE, OVERSTAY_DEFAULTS } from "@silid/db/src/money-reference.ts";
 
 /**
  * The database reads override values as jsonb TEXT (`->>`); these patterns
@@ -34,7 +34,7 @@ export type OverrideText = string | number;
 
 /** The jsonb text form the database function extracts from the merge payload. */
 function overrideToText(value: OverrideText): string {
-  return typeof value === "number" ? String(value) : value;
+  return String(value);
 }
 
 /** vault-07: "150.50 is accepted as 150.5" — trailing decimal zeros drop. */
@@ -69,12 +69,15 @@ function minutesSchema(options: { allowZero: boolean }) {
 }
 
 /**
- * Money override text: digits with optional decimals, at most 12 characters,
- * with the range rule of the caller. Accepted text is normalized
- * (trailing decimal zeros dropped) before it reaches the merge payload.
+ * Money override text: digits with optional decimals, at most 12 characters.
+ * The database's digit-only regex already refuses signed and malformed text
+ * (its `::numeric < 0` guard is unreachable for regex-passing text, exactly
+ * like this one), so the only live range distinction is ZERO: strictly
+ * positive for block_charge, zero legal for canteen prices (vault-08).
+ * Accepted text is normalized (trailing decimal zeros dropped).
  */
 function moneySchema(range: "positive" | "nonnegative") {
-  return z
+  const base = z
     .union([z.string(), z.number()])
     .transform(overrideToText)
     .pipe(
@@ -83,12 +86,15 @@ function moneySchema(range: "positive" | "nonnegative") {
         .regex(MONEY_TEXT_PATTERN, "must be digits with optional decimals")
         .refine((text) => text.length <= MAX_MONEY_TEXT_LENGTH, {
           message: "must be at most 12 characters",
-        })
-        .refine((text) => (range === "positive" ? Number.parseFloat(text) > 0 : Number.parseFloat(text) >= 0), {
-          message: range === "positive" ? "must be strictly positive" : "must not be negative",
         }),
     )
     .transform(normalizeMoneyText);
+  if (range === "positive") {
+    return base.refine((text) => Number.parseFloat(text) > 0, {
+      message: "must be strictly positive",
+    });
+  }
+  return base;
 }
 
 /**
@@ -173,6 +179,11 @@ export type RateConfig = z.output<typeof rateConfigSchema>;
 /** The §3.3 default triple, from the money reference fixture. */
 export type OverstayTriple = { graceMinutes: number; blockMinutes: number; blockCharge: number };
 
+/** The stored scalar's text form (the database reads jsonb values as text). */
+function storedText(value: string | number | undefined | null): string | undefined {
+  return value === undefined || value === null ? undefined : String(value);
+}
+
 /**
  * The effective overstay parameters of a stored card — the TypeScript
  * parity of app.overstay_params (display purposes only; authoritative
@@ -180,22 +191,21 @@ export type OverstayTriple = { graceMinutes: number; blockMinutes: number; block
  * fall back exactly per §3.3; they never error.
  */
 export function readOverstayTriple(config: RateConfig | null | undefined): OverstayTriple {
-  const extension = config?.extension;
-  const grace = extension?.grace_minutes;
-  const block = extension?.block_minutes;
-  const charge = extension?.block_charge;
-  const graceText = typeof grace === "number" ? String(grace) : grace;
-  const blockText = typeof block === "number" ? String(block) : block;
-  const chargeText = typeof charge === "number" ? String(charge) : charge;
+  const graceText = storedText(config?.extension?.grace_minutes);
+  const blockText = storedText(config?.extension?.block_minutes);
+  const chargeText = storedText(config?.extension?.block_charge);
   return {
-    graceMinutes: graceText !== undefined && MINUTES_TEXT_PATTERN.test(graceText) ? parseStoredInteger(graceText) : 25,
+    graceMinutes:
+      graceText !== undefined && MINUTES_TEXT_PATTERN.test(graceText)
+        ? parseStoredInteger(graceText)
+        : OVERSTAY_DEFAULTS.grace_minutes,
     blockMinutes:
       blockText !== undefined && MINUTES_TEXT_PATTERN.test(blockText) && parseStoredInteger(blockText) > 0
         ? parseStoredInteger(blockText)
-        : 60,
+        : OVERSTAY_DEFAULTS.block_minutes,
     blockCharge:
       chargeText !== undefined && MONEY_TEXT_PATTERN.test(chargeText) && Number.parseFloat(chargeText) > 0
         ? Number.parseFloat(chargeText)
-        : 150,
+        : OVERSTAY_DEFAULTS.block_charge,
   };
 }

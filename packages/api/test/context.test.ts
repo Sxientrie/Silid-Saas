@@ -11,13 +11,14 @@ import { createTrpcContext } from "../src/context";
  */
 vi.mock("@supabase/supabase-js", () => {
   return {
-    createClient: vi.fn((_url: string, _key: string, opts?: { global?: { headers?: Record<string, string> } }) => {
+    createClient: vi.fn((_url: string, _key: string, opts?: Record<string, unknown>) => {
       const state = (globalThis as Record<string, unknown>).__silidMockAuthState as {
         result: { data: unknown; error: unknown };
       };
+      const created = (globalThis as Record<string, unknown>).__silidMockClients as Array<Record<string, unknown>>;
+      created.push({ opts });
       return {
         auth: { getClaims: vi.fn(async () => state.result) },
-        // capture the as-caller headers for assertions
         __opts: opts,
       };
     }),
@@ -28,6 +29,11 @@ type MockState = { result: { data: unknown; error: unknown } };
 
 function setMockState(state: MockState) {
   (globalThis as Record<string, unknown>).__silidMockAuthState = state;
+  (globalThis as Record<string, unknown>).__silidMockClients = [];
+}
+
+function createdClients(): Array<Record<string, unknown>> {
+  return (globalThis as Record<string, unknown>).__silidMockClients as Array<Record<string, unknown>>;
 }
 
 const URL = "https://example.supabase.co";
@@ -62,6 +68,29 @@ describe("createTrpcContext", () => {
       claims: { role: "cashier", org_id: ORG, branch_id: BRANCH },
     });
     expect(ctx.data).not.toBeNull();
+    // two clients were created: the verification client (no session, no
+    // caller credentials) and the as-caller client (the caller's JWT as
+    // the Bearer credential, so RLS governs every query)
+    expect(createdClients()).toHaveLength(2);
+    expect(createdClients()[0]).toMatchObject({
+      opts: { auth: { persistSession: false, autoRefreshToken: false } },
+    });
+    expect(createdClients()[1]).toMatchObject({
+      opts: {
+        auth: { persistSession: false, autoRefreshToken: false },
+        global: { headers: { Authorization: `Bearer ${TOKEN}` } },
+      },
+    });
+  });
+
+  it("an error together with a payload still yields the anonymous context (fail closed)", async () => {
+    setMockState({
+      result: { data: { claims: validPayload }, error: { message: "signature check failed" } },
+    });
+    expect(await createTrpcContext({ supabaseUrl: URL, publishableKey: KEY, accessToken: TOKEN })).toEqual({
+      caller: null,
+      data: null,
+    });
   });
 
   it("a token that fails verification yields the anonymous context", async () => {

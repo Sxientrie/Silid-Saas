@@ -35,9 +35,10 @@ describe.skipIf(!env.ready)("tRPC contracts (linked project, live)", () => {
   const run = `p04${Date.now()}`;
   const password = `pa55-${run}-x`;
 
-  const admin = createClient(url, env.serviceKey!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  // The admin client is created lazily (beforeAll): creating it at
+  // collection time would throw in environments without the local env
+  // (CI, Stryker's sandbox), where this suite is skipped anyway.
+  let admin: SupabaseClient;
 
   const orgA = crypto.randomUUID();
   const orgB = crypto.randomUUID();
@@ -98,6 +99,9 @@ describe.skipIf(!env.ready)("tRPC contracts (linked project, live)", () => {
   }
 
   beforeAll(async () => {
+    admin = createClient(url, env.serviceKey!, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
     // Tenants: org A (two branches), org B (one branch). Branches take the
     // seeded rate_config column default (the full fixture card).
     const { error: orgError } = await admin.from("organizations").insert([

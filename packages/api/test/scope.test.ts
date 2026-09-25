@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TRPCError } from "@trpc/server";
-import { resolveBranchFilter } from "../src/index.js";
+import { assertTargetInScope, resolveBranchFilter } from "../src/index.js";
 import type { Caller } from "../src/index.js";
 
 /**
@@ -66,5 +66,57 @@ describe("resolveBranchFilter — claim-derived scope with an optional target se
     } catch (error) {
       expect((error as TRPCError).code).toBe("UNAUTHORIZED");
     }
+  });
+
+  it("refusing a cashier's foreign-branch selector carries the scope reason", () => {
+    try {
+      resolveBranchFilter(cashier(BRANCH_A1), BRANCH_B1);
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect((error as TRPCError).message).toBe("scope comes from the session claims, not the request");
+    }
+  });
+});
+
+describe("assertTargetInScope — the verified-target gate", () => {
+  const target = { kind: "target", orgId: ORG_A, branchId: BRANCH_A1 } as const;
+
+  it("accepts a visible branch inside the claim org and returns its id", () => {
+    expect(assertTargetInScope(target, { orgId: ORG_A })).toBe(BRANCH_A1);
+  });
+
+  it("refuses an invisible branch with NOT_FOUND and the honest reason", () => {
+    try {
+      assertTargetInScope(target, null);
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect((error as TRPCError).code).toBe("NOT_FOUND");
+      expect((error as TRPCError).message).toBe("branch not found in the caller's scope");
+    }
+  });
+
+  it("refuses a branch from another organization with FORBIDDEN and the honest reason", () => {
+    try {
+      assertTargetInScope(target, { orgId: ORG_B });
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect((error as TRPCError).code).toBe("FORBIDDEN");
+      expect((error as TRPCError).message).toBe("branch belongs to another organization");
+    }
+  });
+
+  it("refuses a non-target decision (a caller-internal misuse) loudly", () => {
+    try {
+      assertTargetInScope({ kind: "org", orgId: ORG_A } as never, { orgId: ORG_A });
+      throw new Error("expected refusal");
+    } catch (error) {
+      expect((error as TRPCError).code).toBe("INTERNAL_SERVER_ERROR");
+      expect((error as TRPCError).message).toBe("no target to verify");
+    }
+  });
+
+  it("skips the org-membership check only for the platform tier (orgId null)", () => {
+    const platformTarget = { kind: "target", orgId: null, branchId: BRANCH_B1 } as const;
+    expect(assertTargetInScope(platformTarget, { orgId: ORG_B })).toBe(BRANCH_B1);
   });
 });

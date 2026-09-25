@@ -3,7 +3,7 @@
  * master data is written by provisioning/platform paths, not by the desk.
  */
 import { z } from "zod";
-import { rateConfigSchema } from "./rate-config.schema.js";
+import { rateConfigSchema } from "./rate-config.schema.ts";
 
 export const branchViewSchema = z.object({
   id: z.uuid(),

@@ -581,6 +581,9 @@ importers:
       '@silid/db':
         specifier: workspace:*
         version: link:../db
+      '@silid/schemas':
+        specifier: workspace:*
+        version: link:../schemas
     devDependencies:
       '@silid/config':
         specifier: workspace:*

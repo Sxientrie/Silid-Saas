@@ -8,7 +8,7 @@ export {
   rateConfigSchema,
   readOverstayTriple,
   updateRateConfigInputSchema,
-} from "./rate-config.schema.js";
+} from "./rate-config.schema.ts";
 export type {
   CanteenItemId,
   CanteenOverrides,
@@ -19,16 +19,16 @@ export type {
   OverstayTriple,
   RateConfig,
   UpdateRateConfigInput,
-} from "./rate-config.schema.js";
+} from "./rate-config.schema.ts";
 
-export { branchViewSchema, branchWithRateConfigSchema } from "./branch.schema.js";
-export type { BranchView, BranchWithRateConfig } from "./branch.schema.js";
+export { branchViewSchema, branchWithRateConfigSchema } from "./branch.schema.ts";
+export type { BranchView, BranchWithRateConfig } from "./branch.schema.ts";
 
-export { ROOM_STATUSES, roomStatusSchema, roomViewSchema } from "./room.schema.js";
-export type { RoomStatus, RoomView } from "./room.schema.js";
+export { ROOM_STATUSES, roomStatusSchema, roomViewSchema } from "./room.schema.ts";
+export type { RoomStatus, RoomView } from "./room.schema.ts";
 
-export { STAFF_ROLES, staffRoleSchema, staffViewSchema } from "./staff.schema.js";
-export type { StaffRole, StaffView } from "./staff.schema.js";
+export { STAFF_ROLES, staffRoleSchema, staffViewSchema } from "./staff.schema.ts";
+export type { StaffRole, StaffView } from "./staff.schema.ts";
 
 export {
   BOOKING_TYPES,
@@ -36,5 +36,5 @@ export {
   bookingTypeSchema,
   sessionStatusSchema,
   sessionViewSchema,
-} from "./session.schema.js";
-export type { BookingTypeValue, SessionStatus, SessionView } from "./session.schema.js";
+} from "./session.schema.ts";
+export type { BookingTypeValue, SessionStatus, SessionView } from "./session.schema.ts";

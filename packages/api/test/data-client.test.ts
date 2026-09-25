@@ -143,4 +143,89 @@ describe("createSilidDataClient — as-caller query wiring", () => {
     } as unknown as SupabaseClient;
     await expect(createSilidDataClient(failing).listBranches()).rejects.toThrow("permission denied");
   });
+
+  it("surfaces the error message of every read and write method", async () => {
+    const failing = {
+      from: () => {
+        const fail = async () => ({ data: null, error: { message: "rls refused the row" } });
+        return {
+          select: () => ({
+            eq: () => ({ maybeSingle: fail }),
+            in: () => ({ order: fail }),
+            order: fail,
+          }),
+        };
+      },
+      rpc: async () => ({ data: null, error: { message: "rpc refused" } }),
+    } as unknown as SupabaseClient;
+    const data = createSilidDataClient(failing);
+    await expect(data.getBranch(BRANCH)).rejects.toThrow("rls refused the row");
+    await expect(data.listRooms([BRANCH])).rejects.toThrow("rls refused the row");
+    await expect(data.listStaff()).rejects.toThrow("rls refused the row");
+    await expect(data.listSessions([BRANCH])).rejects.toThrow("rls refused the row");
+    await expect(data.listBranches()).rejects.toThrow("rls refused the row");
+    await expect(data.updateRateConfig(BRANCH, undefined, undefined)).rejects.toThrow("rpc refused");
+  });
+
+  it("passes the exact query shapes the tables require", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const tableRows: Record<string, unknown> = { branches: branchRow, rooms: roomRow, sessions: sessionRow };
+    const client = {
+      from(table: string) {
+        const step: Record<string, unknown> = { table };
+        seen.push(step);
+        const record = (key: string, value: unknown) => {
+          step[key] = value;
+          return {
+            eq: (col: string, v: string) => {
+              step.eq = { col, v };
+              return { maybeSingle: async () => ({ data: branchRow, error: null }) };
+            },
+            in: (col: string, ids: string[]) => {
+              step.in = { col, ids };
+              return { order: (col2: string, opts: { ascending: boolean }) => {
+                step.orderAfterIn = { col: col2, ...opts };
+                return Promise.resolve({ data: [tableRows[table]], error: null });
+              } };
+            },
+            order: (col: string) => {
+              step.order = col;
+              return Promise.resolve({ data: [branchRow], error: null });
+            },
+          };
+        };
+        return { select: () => record("select", "*") };
+      },
+      rpc: async (_fn: string, args: Record<string, unknown>) => {
+        seen.push({ rpc: "update_rate_config", args });
+        return { data: branchRow.rate_config, error: null };
+      },
+    } as unknown as SupabaseClient;
+    const data = createSilidDataClient(client);
+    await data.listBranches();
+    await data.getBranch(BRANCH);
+    await data.listRooms([BRANCH]);
+    await data.listSessions([BRANCH]);
+    await data.updateRateConfig(BRANCH, { bottled_water: "35" }, { grace_minutes: "0" });
+
+    expect(seen[0]).toMatchObject({ table: "branches", order: "name" });
+    expect(seen[1]).toMatchObject({ table: "branches", eq: { col: "id", v: BRANCH } });
+    expect(seen[2]).toMatchObject({ table: "rooms", in: { col: "branch_id", ids: [BRANCH] }, orderAfterIn: { col: "room_number" } });
+    expect(seen[3]).toMatchObject({ table: "sessions", in: { col: "branch_id", ids: [BRANCH] }, orderAfterIn: { col: "checked_in_at", ascending: false } });
+    expect(seen[4]).toMatchObject({
+      rpc: "update_rate_config",
+      args: { row_branch_id: BRANCH, canteen_overrides: { bottled_water: "35" }, extension_overrides: { grace_minutes: "0" } },
+    });
+  });
+
+  it("getBranch resolves to null when the scoped lookup finds no row", async () => {
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    expect(await createSilidDataClient(client).getBranch(BRANCH)).toBeNull();
+  });
 });

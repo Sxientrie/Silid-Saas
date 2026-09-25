@@ -25,6 +25,7 @@ import {
   WORKED_EXAMPLES,
 } from "@silid/db/src/money-reference.ts";
 import { vaultBookingGoldens, vaultExtensionBlockGoldens } from "./vault-goldens.ts";
+import { buildServiceConfigReport, runServiceConfigGate } from "./service-config-gate.ts";
 
 export interface RecomputedFigure {
   source: string;
@@ -269,44 +270,61 @@ function main(argv: string[]): number {
     return index >= 0 ? argv[index + 1] : undefined;
   };
 
-  if (!has("--reference") && !has("--ledger")) {
+  if (!has("--reference") && !has("--ledger") && !has("--service-config")) {
     console.error(
-      "money-recompute: nothing to do. Pass --reference (worked examples + vault goldens) and/or --ledger.",
+      "money-recompute: nothing to do. Pass --reference (worked examples + vault goldens), --ledger, and/or --service-config (the rate-configuration service's accepted behavior).",
     );
     return 2;
   }
 
-  const lines: RecomputedFigure[] = [];
+  const sections: string[] = [];
+  let zeroDrift = true;
 
-  if (has("--reference")) {
-    const result = recomputeReferenceFigures();
-    lines.push(...result.recomputedFigures);
-  }
+  if (has("--reference") || has("--ledger")) {
+    const lines: RecomputedFigure[] = [];
 
-  if (has("--ledger")) {
-    const seed = Number(value("--seed") ?? DEFAULT_SEED);
-    const eventCount = Number(value("--events") ?? 40);
-    const ledger = reconcileLedger(seededLedger(seed, eventCount).events);
-    lines.push({
-      source: "seeded ledger",
-      label: `seed ${seed}, ${eventCount} events (running vs grouped summation)`,
-      independent_php: ledger.runningTotalPhp,
-      stated_php: ledger.groupedTotalPhp,
-    });
-    for (const anomaly of ledger.anomalies) {
-      console.error(`money-recompute: anomaly ${anomaly.id}: ${anomaly.reason}`);
+    if (has("--reference")) {
+      const result = recomputeReferenceFigures();
+      lines.push(...result.recomputedFigures);
     }
+
+    if (has("--ledger")) {
+      const seed = Number(value("--seed") ?? DEFAULT_SEED);
+      const eventCount = Number(value("--events") ?? 40);
+      const ledger = reconcileLedger(seededLedger(seed, eventCount).events);
+      lines.push({
+        source: "seeded ledger",
+        label: `seed ${seed}, ${eventCount} events (running vs grouped summation)`,
+        independent_php: ledger.runningTotalPhp,
+        stated_php: ledger.groupedTotalPhp,
+      });
+      for (const anomaly of ledger.anomalies) {
+        console.error(`money-recompute: anomaly ${anomaly.id}: ${anomaly.reason}`);
+      }
+    }
+
+    const report = diffFigures(lines);
+    zeroDrift &&= report.zeroDrift;
+    sections.push(buildReport(report));
   }
 
-  const report = diffFigures(lines);
-  const markdown = buildReport(report);
+  if (has("--service-config")) {
+    const gate = runServiceConfigGate();
+    zeroDrift &&= gate.zeroDrift;
+    sections.push(buildServiceConfigReport(gate));
+  }
+
+  const markdown = sections.join("\n\n");
+  const verdict = zeroDrift
+    ? undefined
+    : "\nGATE: BLOCKED — drift detected (see the sections above).";
   const outPath = value("--out");
   if (outPath) {
-    writeFileSync(outPath, `${markdown}\n`);
+    writeFileSync(outPath, `${markdown}${verdict ?? ""}\n`);
     console.error(`money-recompute: report written to ${outPath}`);
   }
   console.log(markdown);
-  return report.zeroDrift ? 0 : 1;
+  return zeroDrift ? 0 : 1;
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
