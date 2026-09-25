@@ -2405,3 +2405,148 @@ decide-and-proceed):**
 STATUS: IN PROGRESS — Phase 04 session started; research complete;
 tripwire detected and logged; proceeding to Deliverable 2
 (packages/schemas, test-first).
+
+### 2026-09-25 — Deliverable 2: packages/schemas (Zod single source of truth) — DONE
+
+- Dependencies installed with pnpm (never hand-edited manifests):
+  zod@4.6.5 -E and @silid/db@workspace:*; dev @vitest/coverage-v8@5.0.1 +
+  Stryker 10.0.0 -E. zod 4.6.5 APIs confirmed from the installed types
+  before use (z.enum over readonly string tuples, z.partialRecord,
+  z.strictObject/z.looseObject, z.uuid, .pipe/.refine/.catch) —
+  node_modules/.pnpm/zod@4.6.5 types on disk. One live-source lesson
+  recorded: zod 4's z.uuid() enforces RFC version nibbles, so test
+  fixtures use version-4-shaped uuids (real DB uuids from
+  gen_random_uuid() pass strict validation; the pgTAP fixtures'
+  0000-versioned ids never pass through Zod).
+- Test-first: test/rate-config.schema.test.ts (43 tests) written red, then
+  the implementation. The vault-07/§3.3 semantics mirror the database
+  exactly: minutes = digit-only ≤ 9 digits (grace zero legal; block zero
+  refused); money = the DB regex + the §3.3 12-character total cap +
+  strictly positive for block_charge / nonnegative for canteen (zero
+  canteen price legal per vault-08); refusals for fractional/signed/
+  exponent/overflow/trailing-dot values and unknown keys; canonical-text
+  normalization (150.50 → 150.5); stored-card read schema preserves
+  unknown keys (vault-20) and tolerates corruption (§3.4) with
+  readOverstayTriple falling back per §3.3 (parity with
+  app.overstay_params for display). Tenant identifiers and attribution
+  fields (orgId/actor_id/ts) in procedure inputs are REFUSED, not stripped.
+- Coverage + mutation gates wired for the package (DoD adds schemas): 80%
+  line threshold live (current 100% lines / 88% branches over src/**);
+  stryker.conf.json + vitest.stryker.config.mjs follow the recorded Phase 02
+  command-runner pattern (vitest 5.0.1 plugin defect), sandbox command
+  proven green before any mutation run.
+- Verify: npx vitest run --coverage → 49/49, 100% lines; tsc --noEmit
+  clean; eslint --max-warnings 0 clean (all run in packages/schemas).
+
+EVIDENCE bee9288 /Silid/packages/schemas/src/rate-config.schema.ts:1 — the §3.3/vault-07 validator mirror + read path (test-first, 49 tests green)
+EVIDENCE bee9288 /Silid/packages/schemas/stryker.conf.json:1 — mutation gate wired for packages/schemas (break 80)
+
+STATUS: DONE — Deliverable 2 (Build packages/schemas).
+
+### 2026-09-25 — Phase 04 session close (builder) — final status
+
+Fresh builder session; read the full spec set (17 files), roadmap 00–04,
+and PROGRESS.md; tripwire detected and logged at session start (see above).
+
+**Deliverables scoreboard: 1–9 all DONE.**
+
+- D1/D5/D6 (packages/api, read procedures, catalogue): tRPC 11.19.0 core
+  with claim-derived scope (Layer 1); the context factory verifies the
+  access token via supabase.auth.getClaims and derives scope through
+  @silid/auth app_metadata readers; the data port runs as the caller
+  (PostgREST + caller JWT) so RLS stays the non-bypassable backstop; rows
+  validate into @silid/schemas views at the boundary and fail closed.
+  Routers (<domain>.router.ts, verbNoun): branches.listBranches,
+  rooms.listRooms, staff.listStaff, sessions.listSessions,
+  rates.getRateConfig/updateRateConfig (org tier),
+  catalogue.getDefaultCatalogue. The no-re-typed-pesos grep test scans
+  api/schemas/audit sources for money-named literals outside the fixture.
+- D2 (packages/schemas): the Zod single source of truth with the §3.3/
+  vault-07 semantics mirrored from the database (logged above).
+- D3 (packages/audit): the audit_log contract as shared code (action
+  vocabulary, strict input schema refusing forged actor_id/ts/org_id/
+  branch_id, builder stamping actor from the server-resolved caller,
+  writer through the caller-authenticated client).
+- D4 (rate-configuration service + DB): Zod §3.3 validation feeds the
+  canonical text forms to the new atomic public.update_rate_config RPC
+  (MCP apply_migration, version 20260925160913, verbatim mirror) — merge +
+  persisted update + same-transaction audit row, security invoker, RLS-
+  governed; suite 12 (25/25 assertions via the MCP-equivalent path)
+  proves the merge semantics, the server-sealed audit actor/time, and
+  every refusal (a refused value writes nothing and audits nothing; a
+  foreign org admin finds no rows; a cashier is refused at the merge's
+  locked re-read). Advisors re-run: clean or previously dispositioned.
+- D7 (contract tests): deterministic (scope decisions, router contracts
+  over an in-memory port, mappers, context factory) plus SEVEN LIVE
+  contract tests against the linked project (real identities, real
+  sign-ins, real JWT verification, real RLS): the cashier sibling-branch
+  FORBIDDEN refusal, the cross-tenant NOT_FOUND refusals, the full
+  merge-and-audit path with vault-20 key preservation, forged-attribution
+  refusal, garbage-token anonymity, and the fixture-priced catalogue.
+  Auth users deleted in afterAll; database fixtures and the audit row
+  swept via the MCP path (audit rows first) — the linked project returned
+  to its exact pre-session baseline (0 test orgs/staff/users, audit_log
+  44 rows, 1 operator identity).
+- D8 (gates): coverage thresholds 80 live on db/api/schemas — packages/api
+  99.15% lines, packages/schemas 100% lines, packages/db green. Stryker
+  serial runs: api 68.99% → 89.55% and schemas 66.91% → 89.60% after the
+  Improve loop (strengthened tests + removal of dead/equivalent code the
+  survivors exposed); db stays 92.68% scoped to the money fixture. All
+  >= 80. Survivor classes logged as documented exceptions (error-message
+  copy, option-object literals, the trpc middleware UNAUTHORIZED shapes —
+  structurally equivalent at the procedure boundary). Stryker sandbox
+  lesson recorded: stale .stryker-tmp sandboxes must be excluded from
+  test discovery (dot-directory globbing), and env-gated live tests plus
+  the filesystem-probe grep test are excluded from mutation runs with
+  rationale in vitest.stryker.config.mjs.
+- D9 (Money Recomputation Gate): the gate gained a --service-config mode
+  (packages/testing/src/service-config-gate.ts) recomputing the service's
+  accepted-configuration behavior through an independent §3.3
+  transcription (character-code digit loops, decimal-expansion money
+  values, end-walk normalization — no regexes, no parseFloat). The gate
+  bit its own transcription first (a missing 12-character cap — fixed),
+  then: node packages/testing/src/money-recompute.ts --reference
+  --service-config --out reports/proof/phase-04-money-gate.md → ZERO
+  DRIFT, exit 0 (69 checks: §1.4 worked examples, vault goldens, the
+  vault-07 edge corpus, the fixture-derived default triple, the
+  corrupted-card fallback).
+
+**Final verification battery (idle machine, 2026-09-25):** pnpm test 13/13
+turbo tasks (api 64 tests incl. 7 live; schemas 53; audit 12; testing 78);
+pnpm lint 13/13; pnpm check-types 9/9; pnpm rule-lint clean (31 files);
+money gate exit 0. One transient test failure under concurrent load (the
+rule-lint baseline scan while Stryker ran in the background) passed
+immediately on an idle machine — load flakiness, not a code failure.
+
+Builder acceptance draft: reports/phase-04-acceptance.md, generated by the
+generator CLI from reports/proof/phase-04-results.json — ALL GREEN 6/6
+capability lines, every clip slot carrying an explicit recorded
+disposition (the phase's server layer has no UI surface; the recorded
+proofs are the live contract tests, the pgTAP suite, and the gate
+reports).
+
+Honest limitations, visible to the client: (1) no proof clips — no
+Frontdesk UI exists yet by design; (2) the trpc.ts mutation-scope survivor
+class is documented in the results file; (3) the live contract tests skip
+cleanly in CI (no Supabase credentials) — their green run is this
+session's recorded output against the linked project; (4) the DB-side
+rate-merge path (public.merge_rate_config) predates this phase and its
+own 13-assertion suite remains green.
+
+No spec amendments were required this phase; no conflicts between the
+phase prompt and the spec set beyond the runner-note tripwire logged at
+session start. The runner's per-phase review gate (ledger-git
+cross-verification, fresh attack battery, mutation/money gates re-run,
+tripwire check, fresh review sub-agent, final acceptance report) owns the
+phase close.
+
+EVIDENCE cac98d6 /Silid/packages/api/src/trpc.ts:1 — D1/D5: the tRPC core with claim-derived middlewares and the domain routers
+EVIDENCE 6378817 /Silid/packages/audit/src/audit.ts:1 — D3: the audit-writing infrastructure contract
+EVIDENCE debf841 /Silid/supabase/migrations/20260925160913_rate_config_update_rpc.sql:1 — D4: the atomic merge+update+audit RPC and its green pgTAP suite
+EVIDENCE a71bb43 /Silid/packages/api/test/contract.live.test.ts:1 — D7: the live contract proofs against the linked project
+EVIDENCE 205c6f3 /Silid/reports/proof/phase-04-money-gate.md:1 — D8/D9: gate reports and the ZERO DRIFT money-gate diff
+EVIDENCE 205c6f3 /Silid/reports/phase-04-acceptance.md:1 — the builder acceptance draft (ALL GREEN 6/6)
+
+STATUS: SESSION CLOSED — Phase 04 builder-side complete: Deliverables 1–9
+all closed with verification and EVIDENCE. The runner's review gate owns
+the formal close.
