@@ -15,9 +15,10 @@ describe.skipIf(!env.ready)("provisioning path (linked project)", () => {
   const publishableKey = env.publishableKey!;
   const run = `p03_${Date.now()}`;
 
-  const admin = createClient(url, env.serviceKey!, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  // The admin client is created lazily (beforeAll): creating it at
+  // collection time throws in environments without the local env (CI),
+  // where this suite is skipped anyway.
+  let admin: SupabaseClient;
 
   const createdUserIds: string[] = [];
   const createdOrgIds: string[] = [];
@@ -74,6 +75,9 @@ describe.skipIf(!env.ready)("provisioning path (linked project)", () => {
   }
 
   beforeAll(async () => {
+    admin = createClient(url, env.serviceKey!, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
     const operator = await signInAs(env.operatorEmail!, env.operatorPassword!);
     operatorClient = operator.client;
     expect(operator.user.app_metadata?.role).toBe("platform_admin");

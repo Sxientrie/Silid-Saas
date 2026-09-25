@@ -2550,3 +2550,32 @@ EVIDENCE 205c6f3 /Silid/reports/phase-04-acceptance.md:1 — the builder accepta
 STATUS: SESSION CLOSED — Phase 04 builder-side complete: Deliverables 1–9
 all closed with verification and EVIDENCE. The runner's review gate owns
 the formal close.
+### 2026-09-25 — Phase 04 close-out: CI gate repairs (surfaced by the push)
+
+The push exposed two latent CI defects, both fixed:
+
+1. The rule linter's git-resolvable EVIDENCE-tag check (added 5f1285b)
+   broke under GitHub Actions' shallow checkout (fetch-depth 1): every
+   historical tag failed git cat-file — 28 false violations in the main
+   ci job. Fix: the main ci job's checkout now uses fetch-depth: 0, the
+   check's intended semantics (the rls-policy-tests job keeps its shallow
+   checkout — it runs pgTAP, not the linter).
+2. A pre-existing Phase 03 latent defect: the auth integration suite
+   created its admin client at COLLECTION time, which throws in
+   environments without the local env (CI, sandboxes) — the Phase 03
+   ledger's 'skip cleanly in CI' claim was wrong for this file. Fix: the
+   client is created lazily in beforeAll (the same pattern the battery
+   helpers already used); the suite still passes live (6/6 against the
+   linked project, 2026-09-25).
+
+The rls-policy-tests job remains red on the RECORDED operator item from
+Phase 02: Docker Hub anonymous rate limits during supabase start image
+pulls (operator can add free DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets to
+clear it permanently); the pgTAP suites the job would run are proven green
+via the MCP-equivalent path (suites 01-12).
+
+EVIDENCE cb3a2b5 /Silid/.github/workflows/ci.yml:20 — fetch-depth: 0 on the main ci checkout
+EVIDENCE 2a4c0d9 /Silid/packages/auth/test/integration.provisioning.test.ts:18 — the lazy admin client (collection-safe without env)
+
+STATUS: NOTED — CI gate repairs recorded; the phase close remains the
+runner's.
