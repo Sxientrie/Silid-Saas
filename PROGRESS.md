@@ -1877,3 +1877,163 @@ pending (inherited caveat); the ledger header remains the runner's to flip.
 STATUS: DONE — the break is fixed and proven (57/57, no regressions across
 suites 01-10), the battery's full suite is committed and green, and the
 corrective pass is logged. The phase close remains the runner's.
+
+### 2026-09-25 — Phase 01 review-gate corrections (runner audit)
+
+The Phase 01 review audit returned content-false and mis-attributed
+EVIDENCE tags and an incomplete prior correction. This entry records the
+corrected facts; the append-only original entries above are never
+rewritten.
+
+(a) The 2026-09-21 hygiene entry's tag `EVIDENCE 5798f49
+/Silid/.gitignore:1 — ignore rules now include /.mcp.json` is
+content-false: `git show 5798f49:.gitignore` contains no `/.mcp.json`
+line. The ignore rule landed in d533de4 ("chore(repo): untrack local
+MCP config; log first green CI run"), which added `/.mcp.json` at
+.gitignore line 65.
+
+EVIDENCE d533de4 /Silid/.gitignore:65 — the /.mcp.json ignore rule landed here (verified: 5798f49's .gitignore carries no such line)
+
+(b) The 2026-09-21 Sentry entry's tag `EVIDENCE a1207a3
+/Silid/apps/landing/sentry.server.config.ts:1 — DSN env wiring across
+the three apps` is mis-attributed: commit a1207a3's entire diff is one
+line in packages/config/package.json (the @babel/core 8.0.1 to 7.29.7
+collateral pin) — its own message ("wire DSN via NEXT_PUBLIC_SENTRY_DSN
+env var ... uniform across the three apps") contradicts its content.
+The DSN env wiring (`process.env.NEXT_PUBLIC_SENTRY_DSN ?? "<dsn>"` in
+all nine wizard config files) was bundled inside the wizard-output
+commit 741475f, so the entry's "Sanctioned customization (separate
+commit)" claim is contradicted by the diffs: generator output and
+customization were not committed separately for Sentry.
+
+EVIDENCE a1207a3 /Silid/packages/config/package.json:15 — a1207a3's entire diff: the @babel/core collateral pin (not DSN wiring)
+EVIDENCE 741475f /Silid/apps/landing/sentry.server.config.ts:8 — the DSN env wiring lives in the wizard-output commit (all three apps)
+
+(c) The 2026-09-25 gate entry's cross-verification claim ("Two Phase 01
+tags cited a nonexistent sha (56f7c69 ...) Corrected in this ledger;
+re-verified: 43/43 evidence tags resolve") was incomplete: the
+append-only Deliverable 16 text still carries BOTH dead references —
+"committed 56f7c69" (the Stryker-gate claim) and "verified in the tree
+at 62a393e" (the workspace-glob claim) — and the correction named only
+56f7c69. Both shas are nonexistent (`git cat-file -t` fails for each).
+Corrections, resolved against git log:
+
+- 56f7c69 (claimed for the Stryker legacy ignorePatterns) → the real
+  commit is 90cd666 "feat(test): wire Stryker mutation gate on db/api",
+  which carries stryker.conf.json's `ignorePatterns:
+  ["../../legacy/**", ...]`.
+- 62a393e (claimed as the tree where the pnpm-workspace.yaml
+  legacy-glob exclusion was verified for Deliverable 16) → the claim
+  resolves against 8fda7b6: HEAD when Deliverable 16 was verified (the
+  last code commit before the Deliverable 16 progress-log commit
+  9c51b11). Honest precision: the workspace GLOB lines
+  (`apps/*` / `packages/*`) are unchanged since the create-turbo
+  output (4faff69) through 8fda7b6 and HEAD; the old parenthetical
+  "file unchanged since the D1 reshape" was loose — the file itself
+  gained non-glob entries later (fdb9a69 allowBuilds hoist, 90cd666
+  packageExtensions), so the glob claim, not a file-identity claim, is
+  what resolves.
+
+EVIDENCE 90cd666 /Silid/packages/db/stryker.conf.json:10 — the real Stryker-gate commit carrying the legacy ignorePatterns (56f7c69 does not exist)
+EVIDENCE 8fda7b6 /Silid/pnpm-workspace.yaml:2 — the tree the Deliverable 16 glob verification resolves against (62a393e does not exist; globs unchanged since the create-turbo output 4faff69)
+
+STATUS: DONE — the three ledger corrections recorded (content-false
+.gitignore tag, mis-attributed Sentry tag, incomplete gate correction
+with both dead shas resolved); original entries above stand unmodified
+(append-only).
+
+### 2026-09-25 — Phase 01 corrective pass (review-gate findings fixed)
+
+Fresh builder session, zero prior memory, executing the corrective pass
+of the re-opened Phase 01. Read in full, from disk: every file in
+`/Silid/spec/*.md` (17 files), `/Silid/roadmap/01-scaffolding.md`, and
+`/Silid/PROGRESS.md`. `/Silid/tripwire-registry.json` was NOT read and
+is not on any reading list.
+
+**CRITICAL 1 — the acceptance-report proof-completeness convention
+(implemented test-first):** the committed Phase 01 report did not
+survive the project's own generator (every line "attack test: none
+recorded", 6/7 no clip, no verifiable kill rate in the mutation-gate
+detail). The gate-accepted database-phase precedent is now the
+generator's enforced convention in
+packages/testing/src/acceptance-report.ts: a PASS line's clip slot is
+satisfied by a real clip path OR the explicit recorded disposition
+"none recorded — <what proves it instead>" — the reason is mandatory
+and rendered verbatim so the client sees it; the attack-test and
+EVIDENCE slots must always reference real, non-placeholder artifacts.
+Bare "none recorded" clips, empty slots, dispositions smuggled into the
+attack-test/EVIDENCE slots, lying gate details, failed gates, duplicate
+conflicting results, and unmatched failing results all still fail the
+verdict — the hardening's five false-green channels are unchanged and
+every prior attack test passes unmodified. Test-first: 4 new unit tests
+plus 1 new attack fixture (a bare placeholder clip and a "none recorded
+—" attack-test slot must not count green); packages/testing suite 70/70
+green. Clip-path existence is verified at report-authoring time
+(spot-watch below), not inside the generator — the generator's contract
+stays string-level exactly as the hardening left it.
+
+EVIDENCE c90411f /Silid/packages/testing/src/acceptance-report.ts:1 — the proof-completeness convention (disposition form, placeholder rejection) implemented after the tests
+EVIDENCE c90411f /Silid/packages/testing/test/fixtures/attacker/report/results-none-recorded-slots.json:1 — the new attack fixture: bare placeholders and laundered attack slots cannot count green
+
+**Regenerated Phase 01 acceptance report:** the CLI (never hand-edited)
+re-ran on the phase file and an honestly rewritten
+reports/proof/phase-01-results.json: ALL GREEN — 7/7 capability lines.
+Every line cites committed attack material (attack.rule-lint.test.ts
+for the linter, attack.acceptance-report.test.ts for the generator,
+attack.legacy-exclusion.test.ts for the exclusion, the committed
+fixture/violation suites for the capabilities whose attack surface was
+the in-phase fixture proofs, the committed E2E spec for the clip line);
+the six non-UI capabilities carry explicit "none recorded — <what
+proves it instead>" dispositions citing the CI run, committed files,
+and recorded hosted runs; the clip line cites the real landing clip
+(spot-watched on disk: an 18,221-byte .webm); every EVIDENCE tag
+verified to resolve in git before the report was generated.
+
+EVIDENCE 389e63d /Silid/reports/proof/phase-01-results.json:1 — the honest results file (committed attack tests, dispositions with reasons, the real clip path)
+EVIDENCE 389e63d /Silid/reports/phase-01-acceptance.md:1 — regenerated by the generator CLI: ALL GREEN 7/7 with every proof slot honest and resolvable
+
+**Fresh mutation gate (run 2026-09-25, recorded in the report's gate
+line):** `pnpm mutation` 2/2 — packages/db kill rate 92.68% (34 killed
++ 4 timed out of 41 mutants; 3 survivors = the unreachable empty-tier
+guard, documented exception) scoped to the money fixture versus the 80%
+break threshold; packages/api remains the zero-mutant identity
+skeleton. Stryker reports refreshed and committed with the report.
+
+**Cross-check (read-only):** phase-02 and phase-03 regenerated into
+temp files from their existing phase files and results JSONs under the
+fixed generator: phase-02 ALL GREEN 12/12, phase-03 ALL GREEN 8/8. The
+only delta against their committed reports is the verdict-sentence
+phrasing (the hardening moved the "N/N capability lines green" count
+into the not-green branch); both verdicts are unchanged. Their
+committed reports and results JSONs were NOT touched (Phase 03's
+refresh is another pass's job); no findings to carry to the runner from
+either.
+
+**MINOR 3 — prettier guard:** root `format`
+(`prettier --write "**/*.{ts,tsx,md}"`, prettier 3.9.6, create-turbo
+output) reached the read-only legacy tree: `prettier --check
+"**/*.{ts,tsx,md}"` flagged 137 files under legacy/. .prettierignore
+now excludes /legacy (no-generator rationale: prettier ships no init
+command). Verified after the guard: zero files under legacy/ flagged,
+`git ls-files legacy` still tracks all 144 files, the legacy working
+tree untouched by every check run this pass.
+
+EVIDENCE 709914a /Silid/.prettierignore:1 — the prettier guard: the format glob can no longer reach the read-only legacy tree (137 flagged before, 0 after)
+
+**Verification battery (all run live 2026-09-25):** packages/testing
+70/70; `pnpm test` 13/13 turbo tasks (coverage gates live on db/api);
+`pnpm lint` 13/13; `pnpm check-types` 9/9; `pnpm rule-lint` clean
+(31 files); `pnpm mutation` fresh (92.68% db, recorded above);
+`pnpm test:e2e` not re-run this pass — no E2E-affecting file changed
+and the committed clips were spot-watched on disk instead.
+
+Working-tree note for the runner: `tripwire-registry.json` shows as
+modified — this session never read or wrote it, and it is excluded from
+the corrective-pass commits, as are the untracked `.tmp-pgtap-wrapped/`
+and `.zcodeignore`. The ledger header (phase_status, resume_point) is
+the runner's to flip at the Phase 01 close and was not touched.
+
+STATUS: DONE — all four findings fixed and verified: the generator
+convention (70/70), the regenerated Phase 01 report (ALL GREEN 7/7,
+honest slots), the ledger corrections (entry above), and the prettier
+guard. The Phase 01 close remains the runner's.
