@@ -6,8 +6,8 @@
   "last_updated": "2026-09-25",
   "current_phase": "03",
   "phase_status": { "01": "in_progress", "02": "done", "03": "in_progress" },
-  "last_commit": "f4642c6",
-  "resume_point": "Phase 03 started: session research logged; next Deliverable 1 (Supabase Auth clients + claim readers in packages/auth).",
+  "last_commit": "d25e7b3",
+  "resume_point": "Phase 03 builder-side complete: all 7 deliverables closed with EVIDENCE, 145 pgTAP assertions green, E2E 4/4 with clips, acceptance draft ALL GREEN 8/8. Next: the runner per-phase review gate (fresh attack battery, tripwire check, review sub-agent) plus the still-pending Phase 01 gate.",
   "open_decisions": 0
 }
 ```
@@ -1690,3 +1690,55 @@ EVIDENCE f64aad6 /Silid/tests/platform-admin/operator-flow.spec.ts:1 — the E2E
 
 STATUS: DONE — Deliverables 5, 6, and 7. All seven Phase 03 deliverables
 closed; remaining: acceptance report draft and the phase close-out entry.
+
+### 2026-09-25 — Phase 03 session close (builder) — final status
+
+Final verification sequence, all run live 2026-09-25: `pnpm rule-lint`
+clean (31 files); `pnpm lint` 13/13; `pnpm check-types` 9/9; `pnpm test`
+13/13 (packages/auth 20/20 incl. the six live provisioning/deactivation
+integration proofs); `pnpm mutation` 2/2 (db 92.68% ≥ 80; api identity
+skeleton); `pnpm build` 3/3; **`pnpm test:e2e` 4/4** with the live
+operator-provisioning flow; **all ten pgTAP suites green — 145
+assertions** (01 structural verdict, 02: 14, 03: 27, 04: 15, 05: 6, 06:
+13, 07: 13, 08: 15, 09 attack battery: 23, 10: 19) against the linked
+project via `supabase db query --linked` (TAP outputs committed under
+reports/proof/pgtap/phase-03/); advisors re-run and dispositioned.
+
+Deliverables scoreboard at close: **1–7 all DONE** — (1) packages/auth
+Supabase Auth clients + app_metadata claim readers; (2) provision-staff
+Edge Function (trusted path, claims + profile + audit); (3)
+app.deactivate_staff — revocation-first deactivation; (4) the
+claims↔profile-binding migration + pgTAP suite 10 + full-set re-run; (5)
+the Platform Admin v1 portal (create/status/branches/provision + proxy
+guard + platform audit rows); (6) the operator-flow E2E with recorded
+clips; (7) isolation proven through the browser path AND the database
+path. Builder acceptance draft: reports/phase-03-acceptance.md — ALL
+GREEN 8/8.
+
+Recorded honest limitations, visible to the client:
+1. The runner's per-phase review gate (fresh isolated attack battery,
+   tripwire check, fresh review sub-agent) has NOT run for Phase 03 — the
+   ledger stays in_progress for it, exactly like the Phase 02 pattern.
+   The Phase 01 gate also remains pending (inherited caveat).
+2. The live E2E and integration suites skip cleanly when the gitignored
+   env is absent — CI (no Supabase secrets) runs the smoke specs only;
+   wiring the live-suite secrets is an operator item for a later phase.
+3. Two auth-config dashboard toggles are operator items, not code:
+   leaked-password protection (advisors WARN, carried to Phase 11) and
+   Confirm-email (its rate limit blocks a client-signUp-based test; the
+   claims-never-client-set property is proven by two deterministic tests
+   instead — recorded in the Deliverable 2 entry).
+4. The linked project remains the dev/test surface (no Docker on this
+   host — recorded substitution from Phase 02); it ends this session with
+   zero test fixtures (0 orgs, 0 staff, 0 test auth users).
+
+No tripwire was planted in this brief (operator-pasted prompt, matching
+the Phase 02 pattern); the registry stays untouched. Spec changes this
+phase: tech-stack supabase-js 2.116.0 → 2.117.1 (registry re-
+confirmation; CHANGELOG entry in the same commit). No conflicts between
+the phase prompt and the spec set were found.
+
+EVIDENCE d25e7b3 /Silid/reports/phase-03-acceptance.md:1 — the builder acceptance draft (ALL GREEN 8/8 with clips, attack tests, and EVIDENCE per line)
+
+STATUS: SESSION CLOSED — Phase 03 builder-side complete. The runner's
+review gate owns the formal close.
