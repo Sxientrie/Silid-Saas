@@ -18,5 +18,14 @@
     "@vitest/coverage-v8": "5.0.1",
     "eslint": "10.9.1",
     "vitest": "5.0.1"
+  },
+  "dependencies": {
+    "@silid/audit": "workspace:*",
+    "@silid/auth": "workspace:*",
+    "@silid/db": "workspace:*",
+    "@silid/schemas": "workspace:*",
+    "@supabase/supabase-js": "2.117.1",
+    "@trpc/server": "11.19.0",
+    "zod": "4.6.5"
   }
 }

@@ -1,5 +1,15 @@
 {
   "extends": "@silid/config/base.json",
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["node"]
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
