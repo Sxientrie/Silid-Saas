@@ -65,6 +65,13 @@ interface RunResult {
   report?: string;
 }
 
+// Every probe in this file runs the acceptance-report generator as a real
+// subprocess (node + the generator + its fixture reads), which costs seconds
+// on this host and sits at or above vitest's default 5s testTimeout. The
+// budget is therefore stated explicitly per test. Assertion semantics are
+// unchanged: only the time allowance moves.
+const GENERATOR_TIMEOUT_MS = 120_000;
+
 function runGenerator(
   phaseFile: string,
   resultsFile: string,
@@ -112,7 +119,7 @@ describe("attack: acceptance-report — harness control", () => {
     );
     expect(run.code).toBe(0);
     expect(run.output).toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 });
 
 describe("attack: acceptance-report — required behavior (claim: survives)", () => {
@@ -126,7 +133,7 @@ describe("attack: acceptance-report — required behavior (claim: survives)", ()
     expect(run.output).toContain("NOT GREEN");
     expect(run.report).toContain("**BLOCKED**");
     expect(run.report).not.toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it("wrong status value types are rejected loudly (nonzero exit)", () => {
     const run = runGenerator(
@@ -136,7 +143,7 @@ describe("attack: acceptance-report — required behavior (claim: survives)", ()
     );
     expect(run.code).not.toBe(0);
     expect(run.output).toContain("status");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it("a phase file without an acceptance section is rejected loudly", () => {
     const run = runGenerator(
@@ -146,7 +153,7 @@ describe("attack: acceptance-report — required behavior (claim: survives)", ()
     );
     expect(run.code).not.toBe(0);
     expect(run.output.toLowerCase()).toContain("acceptance");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 });
 
 describe("attack: acceptance-report — false-green channels (confirmed breaks)", () => {
@@ -162,7 +169,7 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
     // clip path on capability two is also accepted silently.
     expect(run.code).toBe(0);
     expect(run.report).not.toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it("a failing gate must fail the verdict", () => {
     const run = runGenerator(
@@ -178,7 +185,7 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
     expect(run.code).toBe(0);
     expect(run.report).toContain("FAIL");
     expect(run.report).not.toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it("gate detail contradicting a PASS status must not be green", () => {
     const run = runGenerator(
@@ -193,7 +200,7 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
     // the threshold it knows.
     expect(run.code).toBe(0);
     expect(run.report).not.toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it(
     "duplicate capability results differing only in case must not let order flip the verdict",
@@ -213,6 +220,7 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
       expect(run.code).toBe(0);
       expect(run.report).not.toContain("ALL GREEN");
     },
+    GENERATOR_TIMEOUT_MS,
   );
 
   it("a recorded failing result matching no capability must not be green", () => {
@@ -227,7 +235,7 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
     // FAIL disappears and the verdict is ALL GREEN.
     expect(run.code).toBe(0);
     expect(run.report).not.toContain("ALL GREEN");
-  });
+  }, GENERATOR_TIMEOUT_MS);
 
   it(
     "the no-clip disposition convention must not launder missing attack tests or bare placeholders",
@@ -250,5 +258,6 @@ describe("attack: acceptance-report — false-green channels (confirmed breaks)"
       expect(run.report).toContain("PROOF INCOMPLETE");
       expect(run.report).not.toContain("ALL GREEN");
     },
+    GENERATOR_TIMEOUT_MS,
   );
 });

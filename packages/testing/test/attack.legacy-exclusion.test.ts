@@ -21,6 +21,12 @@ const LEGACY_DIR = join(REPO_ROOT, "legacy");
 const WORKSPACE_PACKAGES = join(REPO_ROOT, "packages");
 const WORKSPACE_APPS = join(REPO_ROOT, "apps");
 
+// The behavioral probes below shell out to a real gate (turbo --dry=json, a
+// nested vitest run, a whole-tree rule-lint scan). Each costs seconds, at or
+// above vitest's default 5s testTimeout, so those probes state their budget
+// explicitly. Assertion semantics are unchanged.
+const SUBPROCESS_TIMEOUT_MS = 120_000;
+
 const toPosix = (p: string): string => p.split("\\").join("/");
 
 function walk(dir: string): string[] {
@@ -90,14 +96,18 @@ describe("attack: legacy exclusion — workspace selection (build gate)", () => 
     }
   });
 
-  it("turbo build selects zero tasks for the legacy filter", () => {
-    const output = execSync(
-      "pnpm exec turbo run build --filter=./legacy --dry=json",
-      { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-    );
-    const dry = JSON.parse(output) as { tasks?: unknown[] };
-    expect(dry.tasks).toEqual([]);
-  });
+  it(
+    "turbo build selects zero tasks for the legacy filter",
+    () => {
+      const output = execSync(
+        "pnpm exec turbo run build --filter=./legacy --dry=json",
+        { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      );
+      const dry = JSON.parse(output) as { tasks?: unknown[] };
+      expect(dry.tasks).toEqual([]);
+    },
+    SUBPROCESS_TIMEOUT_MS,
+  );
 });
 
 describe("attack: legacy exclusion — test and coverage globs", () => {
@@ -146,26 +156,30 @@ describe("attack: legacy exclusion — test and coverage globs", () => {
     }
   });
 
-  it("vitest pointed at legacy selects zero test files (behavioral probe)", () => {
-    let output = "";
-    let code = 0;
-    try {
-      output = execSync("pnpm exec vitest run ../../legacy", {
-        cwd: join(REPO_ROOT, "packages", "db"),
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-    } catch (error) {
-      const err = error as { status?: number; stdout?: string; stderr?: string };
-      code = err.status ?? 1;
-      output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
-    }
-    // Zero tests found for the legacy filter is the required outcome; the
-    // nonzero exit is vitest's "no test files found" signal, not a failure
-    // of the exclusion.
-    expect(output).toContain("No test files found");
-    expect(code).not.toBe(0);
-  });
+  it(
+    "vitest pointed at legacy selects zero test files (behavioral probe)",
+    () => {
+      let output = "";
+      let code = 0;
+      try {
+        output = execSync("pnpm exec vitest run ../../legacy", {
+          cwd: join(REPO_ROOT, "packages", "db"),
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+      } catch (error) {
+        const err = error as { status?: number; stdout?: string; stderr?: string };
+        code = err.status ?? 1;
+        output = `${err.stdout ?? ""}${err.stderr ?? ""}`;
+      }
+      // Zero tests found for the legacy filter is the required outcome; the
+      // nonzero exit is vitest's "no test files found" signal, not a failure
+      // of the exclusion.
+      expect(output).toContain("No test files found");
+      expect(code).not.toBe(0);
+    },
+    SUBPROCESS_TIMEOUT_MS,
+  );
 });
 
 describe("attack: legacy exclusion — mutation gate globs", () => {
@@ -212,13 +226,17 @@ describe("attack: legacy exclusion — lint and e2e globs", () => {
     expect(text).not.toMatch(/legacy/i);
   });
 
-  it("the rule-lint default scan reports zero legacy files", () => {
-    const output = execFileSync(
-      process.execPath,
-      [join(REPO_ROOT, "packages", "testing", "src", "rule-lint.ts")],
-      { cwd: REPO_ROOT, encoding: "utf8" },
-    );
-    expect(output).toContain("clean");
-    expect(output).not.toContain("/legacy");
-  });
+  it(
+    "the rule-lint default scan reports zero legacy files",
+    () => {
+      const output = execFileSync(
+        process.execPath,
+        [join(REPO_ROOT, "packages", "testing", "src", "rule-lint.ts")],
+        { cwd: REPO_ROOT, encoding: "utf8" },
+      );
+      expect(output).toContain("clean");
+      expect(output).not.toContain("/legacy");
+    },
+    SUBPROCESS_TIMEOUT_MS,
+  );
 });

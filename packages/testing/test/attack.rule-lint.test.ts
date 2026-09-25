@@ -30,6 +30,12 @@ const ATTACKER_FIXTURES = join(
   "attacker",
 );
 
+// A whole-tree rule-lint scan is a subprocess over every spec, roadmap and
+// log file (31 files, ~5s on the builder host), which is at or above vitest's
+// default 5s testTimeout. Probes that run the default scan state their budget
+// explicitly; assertion semantics are unchanged.
+const FULL_SCAN_TIMEOUT_MS = 120_000;
+
 interface LintResult {
   code: number;
   output: string;
@@ -55,15 +61,19 @@ const countOccurrences = (haystack: string, needle: string): number =>
   haystack.split(needle).length - 1;
 
 describe("attack: rule-lint — compliant tree baseline", () => {
-  it("the default scan stays clean while the attacker fixtures are present", () => {
-    const run = runRuleLint();
-    expect(run.code).toBe(0);
-    expect(run.output).toContain("clean");
-    // The default scan must not have started scanning the attacker fixtures
-    // (if it had, it would flag them and the count of scanned files would
-    // change; either way the tree is no longer compliant-clean).
-    expect(run.output).not.toContain("attacker");
-  });
+  it(
+    "the default scan stays clean while the attacker fixtures are present",
+    () => {
+      const run = runRuleLint();
+      expect(run.code).toBe(0);
+      expect(run.output).toContain("clean");
+      // The default scan must not have started scanning the attacker fixtures
+      // (if it had, it would flag them and the count of scanned files would
+      // change; either way the tree is no longer compliant-clean).
+      expect(run.output).not.toContain("attacker");
+    },
+    FULL_SCAN_TIMEOUT_MS,
+  );
 });
 
 describe("attack: rule-lint — terminology rule (claim: survives)", () => {
