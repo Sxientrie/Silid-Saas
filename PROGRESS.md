@@ -1535,3 +1535,84 @@ EVIDENCE d275524 /Silid/supabase/migrations/20260925091000_restore_service_role_
 
 STATUS: DONE — Deliverable 2 (provisioning function; claims + profile rows
 only through the trusted server path).
+
+### 2026-09-25 — Deliverables 3+4: deactivation revocation + claims↔profile binding + full pgTAP set — DONE
+
+- **Deliverable 3 (deactivation is revocation)**: `app.deactivate_staff(p_target_user_id)`
+  — SECURITY DEFINER in the non-exposed `app` schema (the sanctioned Phase 02
+  pattern: no direct write path exists for the operation; in-body
+  authorization from claims; EXECUTE revoked from public/anon), with a
+  public security-invoker wrapper granted to authenticated. One
+  transaction: DELETE the target's `auth.sessions` rows FIRST (the
+  documented revocation path — sessions are rows; the sessions guide:
+  removed sessions kill refresh; access tokens persist until expiry, which
+  is exactly what the profile flip then neutralizes), UPDATE
+  `staff.is_active = false`, INSERT one audit row (the seal trigger
+  attributes actor/org from the caller's claims). Refuses: re-deactivation
+  (P0001), cross-tenant targets (42501), non-admin callers (42501), and —
+  after a hardening pass — any caller whose claims don't match an active
+  profile (a deactivated org_admin's stale token deactivates nothing).
+  Admin-API alternative `admin.signOut(jwt,'global')` was rejected: it
+  requires the TARGET's JWT in hand, which a deactivation flow does not
+  have; verified from installed @supabase/auth-js types + the sessions doc.
+- **Deliverable 4 (claims↔profile binding)**: new migration tightens the
+  role helpers (`app.is_platform_admin/is_org_admin/is_cashier`) with
+  `app.claims_match_profile()` — tenant claims act ONLY when an ACTIVE
+  staff row exists whose role/org/branch match the claims; platform_admin
+  claims must carry null org/branch (no staff row required,
+  spec/data-model.md §1). Because the helpers are the single seam every
+  policy, seal trigger, and RPC authorization reads, everything binds at
+  once. The DoD's "deactivated user's scope cannot act" is now true at the
+  database layer immediately — without waiting for JWT refresh.
+- **Three corrections the suites demanded (the loop working as intended):**
+  1. RLS-through-RLS recursion: the first binding iteration read
+     `public.staff` SECURITY INVOKER — staff's own policies call the
+     helpers, which call the binding — stack-depth explosion. The binding
+     lookup is the foundation staff RLS stands on, so it runs SECURITY
+     DEFINER (owner, bypassrls), exposing exactly one boolean.
+  2. Claim-shape enforcement: suite 10 caught that the org_admin binding
+     checked the staff ROW's branch nullity but not the CLAIM's — an
+     org_admin claim carrying a branch_id slipped through. Fixed on the
+     claim side per §2.
+  3. Service-role grant posture: the D2-era blanket service grant broke
+     suites 01/09 (ledger UPDATE/DELETE/SELECT assertions — Invariant 3
+     keeps ledgers append-only for EVERY role including the service tier).
+     Rescoped: full DML on organizations/branches/staff, INSERT-only on
+     audit_log, NOTHING on the ledgers; superseded mirror removed.
+- **New suite 10** (19 assertions, full loop, test-first): matching-profile
+  visibility; forged claims without a profile row act for nothing;
+  role/org/claim-shape mismatches refused; platform well-formed claims see
+  all; deactivation revokes all sessions in-transaction; profile flips;
+  one audit row; re-deactivation refused; **the deactivated user's stale
+  token acts for nothing**; cross-tenant/cashier/platform authorization
+  matrix.
+- **Full set re-run (the binding touches every Phase 02 policy)**:
+  `supabase db query --linked --file` (Management API path — `db test
+  --linked` still requires Docker; discovered via --help) with a TAP-line
+  capture wrapper (packages/testing/src/wrap-pgtap-capture.mjs; the
+  Management API shows only the last result set). **All ten suites green:
+  145 assertions** — 01 structural (exit 0), 02: 14, 03: 27, 04: 15, 05: 6,
+  06: 13, 07: 13, 08: 15, 09 attack battery: 23, 10: 19. Outputs:
+  reports/proof/pgtap/phase-03/*.tap. Suite 02's platform-visibility
+  assertion now counts FIXTURE ids (the linked project is a shared dev
+  surface — real operator orgs from the E2E will coexist; exact-table
+  counts were wrong forever).
+- **Fixture-pollution incident (found and fixed)**: the first full re-run
+  failed suite 02 because integration-test org cleanups had failed on the
+  staff FK — 15 leftover organizations. Cleaned live (0 orgs, 0 staff
+  remain), integration afterAll reordered (children first), verified: the
+  suite leaves 0 orgs.
+- **Advisors** (run after schema/RLS changes): security — 1 WARN,
+  `auth_leaked_password_protection` (pre-existing project auth setting, a
+  dashboard toggle, not introduced by this phase; carried for Phase 11
+  production readiness). Performance — 7 INFO unused_index (expected on an
+  empty database; the tenancy indexes are spec-required).
+- Verify: full pgTAP set green (above); `pnpm --filter @silid/auth test`
+  20/20 with the fixed cleanup; 0 leftover orgs after the run.
+
+EVIDENCE 614f1b2 /Silid/supabase/migrations/20260925092500_staff_deactivation_revocation.sql:1 — deactivation revokes sessions first, flips profile, audits
+EVIDENCE 614f1b2 /Silid/supabase/migrations/20260925092000_claims_profile_binding.sql:1 — claims bound to active staff profiles (definer binding lookup)
+EVIDENCE 614f1b2 /Silid/supabase/tests/10_staff_deactivation_test.sql:1 — suite 10: 19/19 assertions incl. stale-token refusal
+EVIDENCE 614f1b2 /Silid/reports/proof/pgtap/phase-03/02_tenant_isolation_test.tap:1 — full TAP outputs for all ten suites (145 assertions green)
+
+STATUS: DONE — Deliverables 3 and 4.
