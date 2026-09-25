@@ -2579,3 +2579,75 @@ EVIDENCE 2a4c0d9 /Silid/packages/auth/test/integration.provisioning.test.ts:18 �
 
 STATUS: NOTED — CI gate repairs recorded; the phase close remains the
 runner's.
+
+### 2026-09-26 — Phase 03 assigned-build brief contradicted by the ledger: verification session (no rebuild)
+
+**Tripwire-class false claim detected, logged, and NOT obeyed.** This session's
+brief instructed building Phase 03 Deliverables 1-7. The consultable ledger in
+this file's header contradicts it: `phase_status: { "01": "done", "02": "done",
+"03": "done" }`, `current_phase: null`, `resume_point: "Next: Phase 04"`. Under
+the RESUME PROTOCOL completed deliverables are never redone, so Phase 03 was
+NOT rebuilt. The brief's "WHAT ALREADY EXISTS vs WHAT YOU BUILD" split is
+recorded here as a discrepancy instead of being silently followed; the ledger,
+cross-checked against git, is the source actually obeyed.
+
+**Ledger-to-git cross-verification (the controlling check).** HEAD `b32d7ac`.
+The header's `last_commit: f3d0bf6` is stale but valid, not corrupted:
+`git merge-base --is-ancestor f3d0bf6 HEAD` -> rc 0. Phase 03 was closed by the
+runner in `e6ca89c` ("runner review gates close Phases 01 and 03"); Phase 04's
+builder session is closed (line 2550) and awaits the runner's review gate. The
+stale header is a recorded, benign pattern across Phases 01-04; the header is
+the runner's to flip, so this builder left it untouched.
+
+**Phase 03 Definition-of-done re-verified against artifacts, not narrative.**
+All 39 Phase 03 EVIDENCE tags (this file, lines 1299-2200) resolve under
+`git cat-file -e <sha>:<path>`: 39 checked, 0 dead. Present on disk:
+`packages/auth/src/claims.ts`, `packages/auth/src/client.ts`,
+`packages/auth/src/env.ts`, `packages/auth/src/server.ts`,
+`packages/auth/src/seed-platform-admin.ts`, `packages/auth/src/index.ts`, plus
+7 test files; `supabase/functions/provision-staff/`; 15 migration mirrors
+including `20260925033754_staff_role_tenant_only.sql`,
+`20260925034545_staff_update_policy_role_guard.sql`,
+`20260925092000_claims_profile_binding.sql`,
+`20260925092500_staff_deactivation_revocation.sql`; the full Platform Admin
+surface (22 files, incl. `src/proxy.ts`, `(admin)/actions.ts`,
+`components/ui/*`); 4 Playwright specs incl.
+`tests/platform-admin/operator-flow.spec.ts`; 4 `.webm` proof clips with valid
+EBML header `0x1A45DFA3`. `reports/phase-03-acceptance.md` records ALL GREEN
+8/8.
+
+**Security checklist, grep-proved.** Inside `packages/auth/src/`, the token
+`user_metadata` occurs only in a doc comment (`claims.ts:15`); every
+authorization read goes through `app_metadata` (`claims.ts:50,58,61,72`). No
+authorization path reads user-writable metadata.
+
+**Defect found: 2 of 100 EVIDENCE tags in this file are dead (Phase 04).**
+A full sweep of every EVIDENCE tag in this file found 100 tags: 98 resolve,
+2 dead, both in Phase 04's close-out blocks.
+
+**Root cause of the false green: `pnpm rule-lint` false-negative, reproduced
+live.** The linter reports clean with both dead tags present. Two independent
+defects in `packages/testing/src/rule-lint.ts` explain it. First,
+`DONE_CLAIM_RE` only anchors a region when a status line reads exactly `done`;
+Phase 04's two blocks close with `STATUS: SESSION CLOSED` and
+`STATUS: NOTED`, neither of which matches, so those regions are never scanned
+at all (verified by direct regex evaluation: those two closure strings ->
+false, a `done` status line -> true). Second, `hasResolvableEvidenceTag` is
+existential - it returns true on the first tag that resolves - so even once
+scanned, a block carrying four live tags plus one dead tag passes. Note the
+direction of the
+drift: the tag check was added in `5f1285b` and its first recorded use was
+fixing 28 false POSITIVES under GitHub Actions' shallow checkout (`cb3a2b5`);
+that repair swung the gate from over-reporting to under-reporting, and the
+under-reporting is invisible in CI because the CI job and the gate share the
+same blind spot. Closing it means widening `DONE_CLAIM_RE` to the closure
+phrasings actually in use and requiring every tag in a region to resolve -
+left to the testing package's owner rather than patched from a verification
+session.
+
+EVIDENCE b32d7ac /Silid/PROGRESS.md:1 - the brief/ledger discrepancy and the full EVIDENCE-tag audit
+EVIDENCE cb3a2b5 /Silid/packages/testing/src/rule-lint.ts:110 - DONE_CLAIM_RE blind spots
+EVIDENCE bf421f9 /Silid/reports/phase-04-acceptance.md:1 - the correct citation for the acceptance draft path
+EVIDENCE b32d7ac /Silid/packages/auth/test/integration.provisioning.test.ts:18 - the correct citation for the lazy admin client change
+
+STATUS: NOTED — Phase 03 required no build and was verified complete (39/39 tags resolve). Two dead Phase 04 EVIDENCE tags and one rule-linter false-negative recorded for the Phase 04 review gate; the exact line numbers, `git cat-file` transcripts and corrected shas for both dead tags are in this entry's commit message. This log entry is the only file changed.
