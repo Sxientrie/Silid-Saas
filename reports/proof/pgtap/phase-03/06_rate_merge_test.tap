@@ -1,0 +1,18 @@
+Initialising login role...
+┌────────────────────────────────────────────────────────────────────────┐
+│ line                                                                   │
+├────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-20: organization admin merge path executes                │
+│ ok 2 - vault-08/20: canteen override merges                            │
+│ ok 3 - vault-07: zero grace is valid                                   │
+│ ok 4 - vault-07: block minutes merges                                  │
+│ ok 5 - vault-07: decimal block charge merges                           │
+│ ok 6 - vault-20: unknown top-level key is preserved                    │
+│ ok 7 - vault-20: room-rate key outside the owned sections is preserved │
+│ ok 8 - vault-07: zero block length is refused                          │
+│ ok 9 - vault-07: zero block price is refused                           │
+│ ok 10 - vault-07: fractional grace is refused                          │
+│ ok 11 - vault-07: negative block price is refused                      │
+│ ok 12 - vault-08/20: unknown catalogue override is refused             │
+│ ok 13 - vault-07/20: failed validations leave stored config unchanged  │
+└────────────────────────────────────────────────────────────────────────┘

@@ -1,0 +1,24 @@
+Initialising login role...
+┌───────────────────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                                      │
+├───────────────────────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - a cashier whose claims match an active staff profile row sees its branch           │
+│ ok 2 - claims with NO staff profile row act for nothing (forged scope refused)            │
+│ ok 3 - claims whose role mismatches the profile row act for nothing                       │
+│ ok 4 - claims whose org mismatches the profile row act for nothing                        │
+│ ok 5 - an org_admin with matching active profile sees its org branch                      │
+│ ok 6 - an org_admin claim carrying a branch_id acts for nothing (§2 shape violation)      │
+│ ok 7 - a platform_admin claim carrying tenant scope acts for nothing (§2 shape violation) │
+│ ok 8 - a well-formed platform_admin claim (no staff row required) sees all organizations  │
+│ ok 9 - pre-condition: the cashier holds two live sessions                                 │
+│ ok 10 - the org_admin of the same organization deactivates its cashier                    │
+│ ok 11 - deactivation revokes the sessions FIRST — all of them, in the same transaction    │
+│ ok 12 - deactivation marks the profile inactive                                           │
+│ ok 13 - the deactivation writes one audit row attributed to the caller                    │
+│ ok 14 - deactivation is not re-runnable on an inactive profile                            │
+│ ok 15 - a deactivated user's stale token acts for nothing at the database layer           │
+│ ok 16 - an org_admin of organization B cannot deactivate organization A staff             │
+│ ok 17 - a cashier cannot deactivate anyone                                                │
+│ ok 18 - the platform tier deactivates staff of any organization                           │
+│ ok 19 - the platform deactivation marked the profile inactive                             │
+└───────────────────────────────────────────────────────────────────────────────────────────┘

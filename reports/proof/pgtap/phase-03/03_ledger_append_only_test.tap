@@ -1,0 +1,32 @@
+Initialising login role...
+┌────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-13: shift opener comes from claims                            │
+│ ok 2 - vault-13: shift open instant comes from database clock              │
+│ ok 3 - vault-04: client check-in time is ignored and replaced              │
+│ ok 4 - vault-04: booked end is derived from check-in plus three hours      │
+│ ok 5 - vault-10: check-in atomically occupies room                         │
+│ ok 6 - vault-09: add-on unit price is recomputed from branch config        │
+│ ok 7 - vault-09: add-on total is recomputed on the server                  │
+│ ok 8 - vault-09: cashier hand-posting extension charge is refused          │
+│ ok 9 - vault-16: second active session on one room is refused              │
+│ ok 10 - vault-16: second open shift on one branch is refused               │
+│ ok 11 - vault-08: canteen unit price is recomputed from branch config      │
+│ ok 12 - vault-08: canteen total is recomputed on the server                │
+│ ok 13 - vault-17: no role can update a session_addons row                  │
+│ ok 14 - vault-17: no role can delete a session_addons row                  │
+│ ok 15 - vault-17: no role can update a canteen_sales row                   │
+│ ok 16 - vault-17: no role can delete a canteen_sales row                   │
+│ ok 17 - vault-12: no direct session update path                            │
+│ ok 18 - vault-17: no session delete path                                   │
+│ ok 19 - vault-13: no direct shift update path                              │
+│ ok 20 - vault-17: no shift delete path                                     │
+│ ok 21 - vault-17: no audit update path                                     │
+│ ok 22 - vault-17: no audit delete path                                     │
+│ ok 23 - vault-16: the partial unique index refuses a second active session │
+│ ok 24 - vault-17: audit actor comes from claims                            │
+│ ok 25 - vault-17: audit branch comes from claims                           │
+│ ok 26 - vault-17: org_admin cannot update a ledger row                     │
+│ ok 27 - vault-17: org_admin cannot delete audit history                    │
+└────────────────────────────────────────────────────────────────────────────┘

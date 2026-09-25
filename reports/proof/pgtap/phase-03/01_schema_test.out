@@ -1,0 +1,3 @@
+Initialising login role...
+unexpected status 400: {"message":"Failed to run sql query: ERROR:  P0001: SCHEMA TEST FAILURES: no UPDATE grant for service_role on sessions | no DELETE grant for service_role on sessions | no UPDATE grant for service_role on session_addons | no DELETE grant for service_role on session_addons | no UPDATE grant for service_role on canteen_sales | no DELETE grant for service_role on canteen_sales | no UPDATE grant for service_role on shifts | no DELETE grant for service_role on shifts | no UPDATE grant for service_role on audit_log | no DELETE grant for service_role on audit_log\nCONTEXT:  PL/pgSQL function inline_code_block line 4 at RAISE\n"}
+Try rerunning the command with --debug to troubleshoot the error.

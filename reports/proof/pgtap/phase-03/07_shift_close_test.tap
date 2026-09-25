@@ -1,0 +1,18 @@
+Initialising login role...
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                          │
+├───────────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-13: cross-shift checkout and in-window canteen reach later shift │
+│ ok 2 - vault-13: room bucket is base plus surcharge by checkout instant       │
+│ ok 3 - vault-13: add-on bucket is session total minus base and surcharge      │
+│ ok 4 - vault-13: half-open window includes start, excludes close              │
+│ ok 5 - vault-13: expected total combines three buckets                        │
+│ ok 6 - vault-13: voided session is excluded but cannot mutate shift history   │
+│ ok 7 - vault-13: second close is refused                                      │
+│ ok 8 - vault-13: opener records one-shot count and negative variance          │
+│ ok 9 - vault-13: count is one-shot                                            │
+│ ok 10 - vault-13: organization admin may force-close a branch shift           │
+│ ok 11 - vault-13: count at close seals exact variance                         │
+│ ok 12 - vault-13/17: close writes one audit row                               │
+│ ok 13 - vault-13/17: count writes one audit row                               │
+└───────────────────────────────────────────────────────────────────────────────┘

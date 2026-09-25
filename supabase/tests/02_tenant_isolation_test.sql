@@ -99,7 +99,10 @@ select is((select count(*) from public.rooms where org_id = '10000000-0000-0000-
 select is((select count(*) from public.audit_log), 1::bigint, 'vault-17: organization A admin sees only organization A audit rows');
 
 select pg_temp._claims('30000000-0000-0000-0000-000000000006', 'platform_admin', null, null);
-select is((select count(*) from public.organizations), 2::bigint, 'vault-19: platform admin sees all organizations');
+-- The linked project is a shared dev surface: real operator-created
+-- organizations coexist with the fixtures, so the platform visibility
+-- proof counts the FIXTURE ids (both must be visible), not the table.
+select is((select count(*) from public.organizations where id in ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000002')), 2::bigint, 'vault-19: platform admin sees all organizations');
 
 reset role;
 drop function pg_temp._claims(uuid, text, uuid, uuid);

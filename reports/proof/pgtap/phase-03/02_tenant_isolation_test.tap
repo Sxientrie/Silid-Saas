@@ -1,0 +1,19 @@
+Initialising login role...
+┌────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-19: cashier cannot read platform-owned organization rows      │
+│ ok 2 - vault-19: branch 1 cashier sees only branch 1 rooms                 │
+│ ok 3 - vault-19: branch 1 cashier sees only branch 1 sessions              │
+│ ok 4 - vault-19: branch 1 cashier sees only branch 1 add-ons               │
+│ ok 5 - vault-19: branch 1 cashier sees only branch 1 canteen sales         │
+│ ok 6 - vault-19: branch 1 cashier sees only branch 1 shifts                │
+│ ok 7 - vault-17: cashiers do not review audit rows                         │
+│ ok 8 - vault-19: explicit organization B room id is invisible              │
+│ ok 9 - vault-19: explicit sibling-branch room id is invisible              │
+│ ok 10 - vault-19: branch 1 cashier cannot update branch 2 room             │
+│ ok 11 - vault-19: organization A admin sees both organization A branches   │
+│ ok 12 - vault-19: organization A admin cannot see organization B room      │
+│ ok 13 - vault-17: organization A admin sees only organization A audit rows │
+│ ok 14 - vault-19: platform admin sees all organizations                    │
+└────────────────────────────────────────────────────────────────────────────┘

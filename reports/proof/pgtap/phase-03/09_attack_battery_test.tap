@@ -1,0 +1,28 @@
+Initialising login role...
+┌───────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ line                                                                                                          │
+├───────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - attack anon-1: anon role cannot read session ledgers                                                   │
+│ ok 2 - attack anon-2: anon cannot invoke the checkout RPC                                                     │
+│ ok 3 - attack svc-1: service_role has no direct ledger read                                                   │
+│ ok 4 - attack iso-1: organization B admin sees only its own sessions (closed and active alike)                │
+│ ok 5 - attack iso-2: organization B admin cannot read organization A rooms                                    │
+│ ok 6 - attack iso-3: organization B admin cannot review organization A audit                                  │
+│ ok 7 - attack rpc-3: an organization B admin cannot void an organization A session                            │
+│ ok 8 - attack attr-1: a cashier cannot check in under another cashier's name                                  │
+│ ok 9 - attack money-1: zero-pax sessions are refused by the schema                                            │
+│ ok 10 - attack money-2: a canteen sale cannot attach to a closed or foreign-org session                       │
+│ ok 11 - attack iso-4: an add-on cannot attach to a session outside the cashier branch                         │
+│ ok 12 - attack rpc-1: a cashier cannot check out a sibling-branch session                                     │
+│ ok 13 - attack rpc-2: a cashier cannot check out another organization's active session                        │
+│ ok 14 - attack rpc-4: a cashier cannot close a sibling-branch shift                                           │
+│ ok 15 - attack rpc-5: a same-branch non-opener cashier cannot record the count                                │
+│ ok 16 - attack money-3: a negative physical count is refused                                                  │
+│ ok 17 - attack money-4: a negative counted total is refused at close                                          │
+│ ok 18 - attack append-1: even platform_admin cannot update a session row                                      │
+│ ok 19 - attack append-2: even platform_admin cannot delete audit history                                      │
+│ ok 20 - attack rpc-6: an organization B admin cannot even see an organization A branch through the merge path │
+│ ok 21 - attack money-5: zero grace is overdue with zero blocks exactly at booked end                          │
+│ ok 22 - attack money-6: with zero grace the first block starts one minute past booked end                     │
+│ ok 23 - attack money-7: garbage per-branch parameters fall back to the 25/60/150 defaults                     │
+└───────────────────────────────────────────────────────────────────────────────────────────────────────────────┘

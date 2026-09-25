@@ -1,0 +1,20 @@
+Initialising login role...
+┌──────────────────────────────────────────────────────────────────────────┐
+│ line                                                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-11: within-grace checkout is base 450 plus add-ons 100      │
+│ ok 2 - vault-11: checkout closes session                                 │
+│ ok 3 - vault-11: checkout releases room                                  │
+│ ok 4 - vault-11: double checkout is refused                              │
+│ ok 5 - vault-06/11: 61 minutes past grace posts exactly two 150 blocks   │
+│ ok 6 - vault-06/11: second block deficit posts quantity two              │
+│ ok 7 - vault-06/11: extension line total is 300                          │
+│ ok 8 - vault-11: double-close cannot append a second extension line      │
+│ ok 9 - vault-12: cashier cannot void                                     │
+│ ok 10 - vault-17: checkout writes one audit row                          │
+│ ok 11 - vault-12: blank void reason is refused                           │
+│ ok 12 - vault-12: admin void marks session voided                        │
+│ ok 13 - vault-12: voiding a closed session leaves sealed money unchanged │
+│ ok 14 - vault-12/17: void writes one same-transaction audit row          │
+│ ok 15 - vault-12: no path restores a voided charge                       │
+└──────────────────────────────────────────────────────────────────────────┘

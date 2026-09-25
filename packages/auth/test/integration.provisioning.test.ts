@@ -83,6 +83,13 @@ describe.skipIf(!env.ready)("provisioning path (linked project)", () => {
 
   afterAll(async () => {
     // Cleanup the fixtures this suite created (service-key path, test-only).
+    // Children first: staff rows and branches reference the organizations,
+    // and the org delete fails on the FK otherwise (the leftover-pollution
+    // incident suite 02 caught on 2026-09-25).
+    for (const orgId of createdOrgIds) {
+      await admin.from("staff").delete().eq("org_id", orgId);
+      await admin.from("branches").delete().eq("org_id", orgId);
+    }
     for (const userId of createdUserIds) {
       await admin.auth.admin.deleteUser(userId);
     }

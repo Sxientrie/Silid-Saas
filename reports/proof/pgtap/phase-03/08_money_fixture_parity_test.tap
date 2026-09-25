@@ -1,0 +1,20 @@
+Initialising login role...
+┌───────────────────────────────────────────────────────────────────────────┐
+│ line                                                                      │
+├───────────────────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-01: short-time 2 guests totals 450 from the seeded card      │
+│ ok 2 - vault-02: short-time 3 guests totals 650 from the seeded card      │
+│ ok 3 - vault-02: short-time 4 guests totals 850 from the seeded card      │
+│ ok 4 - vault-02: short-time 5 guests totals 1050 from the seeded card     │
+│ ok 5 - vault-03: overnight 2 guests totals 1100 from the seeded card      │
+│ ok 6 - vault-03: overnight 3 guests totals 1400 from the seeded card      │
+│ ok 7 - vault-03: overnight 4 guests totals 1700 from the seeded card      │
+│ ok 8 - vault-03: overnight 5 guests totals 2000 from the seeded card      │
+│ ok 9 - vault-03: overnight 6 guests totals 2300 from the seeded card      │
+│ ok 10 - vault-03: a one-guest overnight resolves to the lowest tier       │
+│ ok 11 - vault-05/06: the exact close of grace is overdue with zero blocks │
+│ ok 12 - vault-06: one minute past grace bills one block                   │
+│ ok 13 - vault-06: a fully elapsed block still bills one block             │
+│ ok 14 - vault-06: one minute into the second hour bills a second block    │
+│ ok 15 - vault-07: seeded grace default is 25 minutes                      │
+└───────────────────────────────────────────────────────────────────────────┘

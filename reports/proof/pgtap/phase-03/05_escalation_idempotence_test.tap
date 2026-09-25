@@ -1,0 +1,11 @@
+Initialising login role...
+┌─────────────────────────────────────────────────────────────┐
+│ line                                                        │
+├─────────────────────────────────────────────────────────────┤
+│ ok 1 - vault-15: escalation advances one eligible room      │
+│ ok 2 - vault-05: one hour past booked end is overdue        │
+│ ok 3 - vault-05: session before booked end remains occupied │
+│ ok 4 - vault-15: second consecutive run changes no room     │
+│ ok 5 - vault-15: two runs leave identical room statuses     │
+│ ok 6 - vault-15: escalation writes no add-on money rows     │
+└─────────────────────────────────────────────────────────────┘
