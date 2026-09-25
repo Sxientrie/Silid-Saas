@@ -1,0 +1,6 @@
+packages\auth\test\integration.provisioning.test.ts:199:    // user_metadata absorbed the forged values; app_metadata is untouched —
+packages\auth\test\integration.provisioning.test.ts:201:    expect(updated.user?.user_metadata).toMatchObject({ role: "platform_admin" });
+packages\auth\src\claims.ts:15: * Authorization reads app_metadata only — user_metadata is user-editable
+packages\auth\test\claims.test.ts:99:  it("reads authorization claims from app_metadata only — a forged user_metadata role is ignored", () => {
+packages\auth\test\claims.test.ts:101:      user_metadata: { role: "platform_admin", org_id: null, branch_id: null },
+supabase\migrations\20260924142000_tenant_policies.sql:2:-- app_metadata from the verified JWT; no user_metadata claim participates in

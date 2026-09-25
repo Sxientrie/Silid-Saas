@@ -11,10 +11,10 @@ export {
   isPlatformAdminClaims,
   parseAppClaims,
   readAppClaims,
-} from "./claims.js";
-export type { AppClaims, AppRole } from "./claims.js";
+} from "./claims";
+export type { AppClaims, AppRole } from "./claims";
 
-export { supabasePublishableKey, supabaseUrl } from "./env.js";
-export { createSilidBrowserClient } from "./client.js";
-export { createSilidServerClient } from "./server.js";
-export type { CookieAdapter } from "./server.js";
+export { supabasePublishableKey, supabaseUrl } from "./env";
+export { createSilidBrowserClient } from "./client";
+export { createSilidServerClient } from "./server";
+export type { CookieAdapter } from "./server";

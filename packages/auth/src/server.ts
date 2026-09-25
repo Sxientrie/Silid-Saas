@@ -1,5 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
-import { supabasePublishableKey, supabaseUrl } from "./env.js";
+import { supabasePublishableKey, supabaseUrl } from "./env";
 
 /**
  * The cookie adapter shape @supabase/ssr expects; the Next.js app supplies
@@ -7,8 +7,10 @@ import { supabasePublishableKey, supabaseUrl } from "./env.js";
  * response objects (proxy route guarding).
  */
 export interface CookieAdapter {
-  getAll(): Array<{ name: string; value: string }>;
-  setAll(cookies: Array<{ name: string; value: string; options?: Record<string, unknown> }>): void;
+  getAll(): ReadonlyArray<{ name: string; value: string }>;
+  setAll(
+    cookies: ReadonlyArray<{ name: string; value: string; options?: Record<string, unknown> }>,
+  ): void;
 }
 
 /**
@@ -20,7 +22,9 @@ export function createSilidServerClient(cookies: CookieAdapter) {
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll() {
-        return cookies.getAll();
+        // @supabase/ssr's GetAllCookies wants a mutable array; adapters may
+        // return readonly arrays (next/headers does).
+        return [...cookies.getAll()];
       },
       setAll(cookiesToSet) {
         cookies.setAll(cookiesToSet);
