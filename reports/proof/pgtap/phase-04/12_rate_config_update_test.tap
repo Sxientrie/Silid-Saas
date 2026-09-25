@@ -1,0 +1,25 @@
+ok 1 - vault-20: the organization-tier merge path executes through the atomic RPC
+ok 2 - vault-08/20: the canteen override merges into the stored card
+ok 3 - vault-07: zero grace is legal and merges
+ok 4 - vault-07: the canonical decimal charge merges
+ok 5 - vault-20: the keys the merge does not own are preserved in storage
+ok 6 - vault-20: the rate card outside the owned sections is untouched
+ok 7 - vault-12: exactly one audit row for the configuration change
+ok 8 - the audit row carries the rate-configuration action
+ok 9 - the audit actor is the verified caller (auth.uid()), never client-supplied
+ok 10 - the audit org is claim-derived (seal trigger)
+ok 11 - the org tier carries no branch claim, so the sealed branch is null (claim-derived, not target-derived)
+ok 12 - vault-17: the before snapshot is captured
+ok 13 - vault-17: the after snapshot is captured
+ok 14 - the audit instant is the server clock at/after the call
+ok 15 - the audit instant is server-sealed (the RPC signature accepts no time)
+ok 16 - vault-07: zero block length is refused at the service path
+ok 17 - vault-07/20: a refused merge leaves the stored card unchanged
+ok 18 - a refused configuration change writes no audit row
+ok 19 - a cashier cannot update rate configuration (no UPDATE-policy row to lock)
+ok 20 - the cashier refusal wrote no audit row (counted by an org-tier reviewer)
+ok 21 - a foreign org admin gets no rows and no write (tenant isolation)
+ok 22 - the platform tier can act on a tenant branch through server-side paths
+ok 23 - the platform action is audited with null org
+ok 24 - the platform action is audited with null branch
+ok 25 - the platform action is audited with the true actor
