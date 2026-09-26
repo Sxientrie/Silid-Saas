@@ -42,10 +42,10 @@ jobs:
       - name: Typecheck
         run: pnpm check-types
 
-      - name: Test (Vitest, coverage gates on db/api)
+      - name: Test (Vitest, coverage gates on db/api/schemas)
         run: pnpm test
 
-      - name: Mutation gate (Stryker, kill rate >= 80% on db/api)
+      - name: Mutation gate (Stryker, kill rate >= 80% on db/api/schemas)
         run: pnpm mutation
 
       - name: Build
