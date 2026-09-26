@@ -3,12 +3,12 @@
 ```json
 {
   "schema": "silid-progress/2",
-  "last_updated": "2026-09-25",
-  "current_phase": null,
-  "phase_status": { "01": "done", "02": "done", "03": "done" },
-  "last_commit": "f3d0bf6",
-  "resume_point": "Phases 01-03 closed by the runner's per-phase review gates (attack batteries: 88 + 28 tests authored, all breaks fixed and retained; fresh review audits passed after corrective passes; both acceptance reports ALL GREEN and byte-identical under the hardened generator). Next: Phase 04 (tRPC API + audit + rate-configuration merge) — runner plants the first tripwire and spawns a fresh builder.",
-  "open_decisions": 0
+  "last_updated": "2026-09-26",
+  "current_phase": "05",
+  "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "in_progress" },
+  "last_commit": "5b6ea61",
+  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
+  "open_decisions": 2
 }
 ```
 
@@ -3072,3 +3072,285 @@ assumed.
 EVIDENCE 5717c7a /Silid/apps/frontdesk/package.json:14 - the Serwist/Turbopack install this session's research chose
 EVIDENCE 5717c7a /Silid/packages/offline-sync/package.json:23 - Dexie installed into the previously dependency-less package
 EVIDENCE 5717c7a /Silid/pnpm-workspace.yaml:6 - the resolved @swc/core build-script decision with its rationale
+
+### 2026-09-26 — Phase 05 Deliverables 1–4: `packages/offline-sync` (cache, outbox, gate, reconnect) — DONE
+
+Six modules, 63 unit tests, 100% statements / branches / functions / lines
+(re-verified this session: `pnpm --filter @silid/offline-sync test` → 6 files,
+63 passed, all four coverage columns 100).
+
+- `src/db.ts` — the desk machine's own IndexedDB database
+  (`silid-frontdesk`): read caches for rooms, branch rate configuration and
+  catalogue prices; the outbox with a monotonic autoincrement `id`; the
+  active-session mirror the overstay ladder will read in Phase 06.
+- `src/outbox.ts` — the idempotency key, `enqueue`, `listReplayable`,
+  `drain`. The key is a fixed-width 16-byte hex UUID built from
+  `crypto.getRandomValues`, deliberately not `crypto.randomUUID()`: that is
+  gated on a secure context, and a desk on a plain-HTTP branch LAN is exactly
+  the machine that must still be able to queue.
+- `src/write-contract.ts` — `submitWrite`: attempt the server, fall back to
+  the durable queue only on a transport failure, never swallow a rejection,
+  and skip the network entirely when the desk already knows it is offline.
+  The key and the enqueue instant are minted *before* the attempt, so a send
+  that dies after reaching the server queues under the same key the server
+  may already hold — the whole crash-after-send story in two lines.
+- `src/online-only.ts` — the four sealed actions and the two-reason verdict.
+- `src/connectivity.ts` — reachability confirmed by probe, never believed
+  from `navigator.onLine`.
+- `src/reconnect.ts` — drain first, refresh second, `lastSyncedAt` stamped
+  only after both finished, and the named `CROSS_DESK_POLL_INTERVAL_MS`.
+
+**Defect the E2E battery caught that reading the code did not (D1).** The
+desk read its cached rooms with `db.rooms.orderBy("roomNumber")` while the
+store was indexed `id, branchId, status`, so Dexie threw
+`SchemaError: KeyPath roomNumber on object store rooms is not indexed` — on
+every harness load, in every scenario, which is why the first battery run was
+noise rather than signal. `roomNumber` is now in the index, with a comment
+recording that index order is lexical, so a branch that needs numeric order
+must zero-pad (a real constraint, stated where the next reader will hit it).
+The regression test is not "the page loads" but
+`db.test.ts > "indexes roomNumber so the desk can read its cached rooms in
+that order"`, which opens the database and orders by the key path directly.
+That is also what took `db.ts` from 8 mutants that nothing could kill to 8/8.
+
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/db.ts:1 — the desk database: read caches, outbox, session mirror
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/outbox.ts:78 — enqueue: committed to IndexedDB before the caller is told anything
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/write-contract.ts:28 — submitWrite: online-first, queue only on a transport failure, key minted before the attempt
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/online-only.ts:36 — evaluateOnlineOnly: the two named refusal reasons
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/connectivity.ts:1 — reachability confirmed by probe, never taken from the browser's own opinion
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/reconnect.ts:16 — drain-then-refresh order and the named 15s cross-desk poll interval
+
+STATUS: DONE — Deliverables 1–4 (`packages/offline-sync`: Dexie cache and
+outbox, the write contract, the online-only gate, the reachability and
+reconnect path), closed test-first with real verification output.
+
+### 2026-09-26 — Phase 05 Deliverable 5: the Frontdesk PWA shell — DONE
+
+Sign-in, role-aware navigation, the `src/proxy.ts` session guard, and
+installability. Generated first, in this order, and committed unmodified
+before anything was written on top (`5717c7a`): the `create-next-app`
+skeleton, then `shadcn add card input label badge alert separator -y` (CLI
+interface confirmed with `shadcn add --help` first; 6 files created). The
+sign-in form, the nav, the guard, the manifest and the worker route are
+hand-written, against the Next 16.3.5 guides in `node_modules/next/dist/docs/`
+— `01-app/02-guides/progressive-web-apps.md` for the Serwist route and
+provider, and `01-app/01-getting-started/16-proxy.md:15` for the fact that
+in Next 16 `proxy.ts` is the current spelling and `middleware.ts` the
+deprecated one.
+
+**Defect verification caught (D5): Serwist's default reconnect behaviour is
+the opposite of this spec's §5.** `SerwistProvider` takes a `reloadOnOnline`
+prop that defaults to `true`. Read off the installed package rather than
+from recall: `@serwist/turbopack/dist/index.react.mjs:96-112,131-133`
+attaches `location.reload()` to the window `online` event. Left at the
+default, every reconnect threw away live desk state — the queued-write
+indicator, the cashier's screen, anything typed but not sent — which is the
+opposite of what `spec/offline-sync.md` §5 asks for. Set to `false` with the
+rationale inline, and the E2E battery now asserts `performance.timeOrigin` is
+byte-identical across a reconnect, so the default cannot quietly return.
+
+**Spec amendment, recorded in the same commit as the change.** The finding
+at session start was that `spec/tech-stack.md:32` named the wrong Serwist
+integration package. It named `@serwist/next` "for the Next.js integration".
+`@serwist/next` is real, published at 9.5.12, and not deprecated — but it
+patches **webpack** (its `webpack(config, options)` hook pushes
+`@serwist/webpack-plugin`'s `InjectManifest`), and its own warning names
+`@serwist/turbopack` as the migration target. This workspace's `next dev`
+and `next build` both use Turbopack, so the installed and correct package is
+`@serwist/turbopack`. The table line now says exactly that, and
+`spec/CHANGELOG.md` carries the entry in the same commit.
+
+**The guard's path decision is a separate module on purpose.** "Is this path
+guarded at all" lives in `src/lib/supabase/guard-scope.ts`, not inside
+`proxy.ts`, because a decision table that can only be exercised by standing
+up a server is a decision table nobody tests. It is a pure function with 6
+unit cases, including that the harness exemption is a path *prefix* and does
+not extend to a path that merely looks like it.
+
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/proxy.ts:4 — the Layer 2 session guard
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/lib/supabase/guard-scope.ts:1 — the guarded-path decision table, unit-tested without a server
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/app/manifest.ts:9 — the installable manifest (display: standalone, start_url "/")
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/app/sw.ts:31 — the Serwist worker, its precache manifest injected at build time
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/app/layout.tsx:1 — reloadOnOnline={false} with the spec §5 rationale inline
+EVIDENCE d2ac349 /Silid/spec/CHANGELOG.md:1 — the same-commit entry for the tech-stack Serwist amendment
+
+STATUS: DONE — Deliverable 5 (the Frontdesk shell: sign-in, role-aware nav,
+route guards, PWA install, offline boot), generated first and closed with
+the E2E battery green.
+
+### 2026-09-26 — Phase 05 Deliverable 6: the offline E2E battery — DONE
+
+`tests/frontdesk/offline-contract.spec.ts` (12 scenarios) and
+`tests/frontdesk/role-nav.spec.ts` (4), video on:
+`pnpm test:e2e` → **20/20, twice**, 18 recorded clips in
+`reports/proof/e2e/`. The contract is proven against an explicitly marked
+HARNESS-ONLY double of one state-changing procedure, because Phase 05 builds
+no business features and the double is not pretending otherwise.
+
+The battery covers the whole attack surface named in the phase file —
+duplicate replay, queue loss on crash, poisoned entries, offline bypass of
+the online-only gate, client-supplied authoritative timestamps — and
+deliberately chooses its faults at *queue* time, because a replay carries
+the payload it was queued with; that is the property, and picking the fault
+at drain time would have tested a property the code does not have.
+
+**Defect verification caught (D6): the ledger counted the whole process.**
+The double's accept log is a process-wide array and `/harness/read` reported
+*every* accepted row in it, so under `workers: 2` one scenario's number
+depended on what an earlier scenario had written — a real flake with a real
+cause, not bad luck. `acceptedCount` now counts only the requested `?run=`,
+and a missing or blank run is a 400 (`harness_no_run`) rather than a
+whole-process count. Covered by
+`apps/frontdesk/test/harness-read-route.test.ts` (5 cases), which required
+`apps/frontdesk/vitest.config.ts` to alias `@` to `./src` (mirroring
+tsconfig) so the test imports the real route module instead of a copy of it.
+
+Two other environment-driven settings, both with the reasoning inline:
+`workers: process.env.CI ? 1 : 2`, and `nextRun()` includes `process.pid` so
+two workers cannot collide on a run id. Before that change the recorded
+failures on this 8 GB host were infrastructure-level only —
+`net::ERR_ABORTED; maybe frame was detached?` and `Object with guid … was not
+bound in the connection` — never an assertion failure: 4 recording browsers
+plus 3 production servers exhausted the machine. Each scenario also gets an
+explicit 90 s budget and `bootDesk` registers `/serwist/sw.js` at scope `/`
+rather than only awaiting it, so the test does not depend on the provider
+having already claimed the page.
+
+**Live-suite rate limiting, recorded so it is not later mistaken for a
+regression.** Repeated full-suite runs exhaust the linked project's Auth send
+quota: `AuthApiError: Request rate limit reached` /
+`over_email_send_rate_limit` in the `@silid/auth` and `@silid/api` live
+tests. Both packages pass on a cooldown re-run
+(`pnpm turbo run test --force` → 13/13 tasks, 407 passed, 1 skipped).
+Transient quota exhaustion on a shared project, not a code defect.
+
+EVIDENCE d2ac349 /Silid/tests/frontdesk/offline-contract.spec.ts:1 — the 12-scenario offline battery
+EVIDENCE d2ac349 /Silid/tests/frontdesk/role-nav.spec.ts:1 — the 4 role-nav and route-guard scenarios against real identities
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/app/harness/desk-demonstrator.tsx:1 — the screen every proof clip records
+EVIDENCE d2ac349 /Silid/apps/frontdesk/src/app/harness/read/route.ts:1 — the run-scoped ledger count (the fix)
+EVIDENCE d2ac349 /Silid/apps/frontdesk/test/harness-read-route.test.ts:1 — the 5 cases that hold the scoping in place
+EVIDENCE d2ac349 /Silid/playwright.config.ts:1 — the serial/CI worker setting with its memory-pressure rationale
+
+STATUS: DONE — Deliverable 6 (the offline E2E battery with video proof),
+20/20 on two independent full runs, 18 clips on disk.
+
+### 2026-09-26 — Phase 05 Deliverable 7: the mutation gate — 99.40% — DONE
+
+`pnpm --filter @silid/offline-sync mutation` → **166 mutants, 165 killed,
+1 survived, 0 timeouts = 99.40%**, against the config's
+`{high 90, low 80, break 80}`. Per file: `connectivity.ts` 38/38, `db.ts`
+8/8, `online-only.ts` 33/33, `outbox.ts` 51/52, `reconnect.ts` 12/12,
+`write-contract.ts` 23/23. Serial, following the db/api/schemas precedent
+*including* the Phase 04 measurement that a hung mutant is scored killed — so
+the 0 timeouts figure is itself the check that this config cannot certify
+itself on a hang.
+
+**The one survivor is proven equivalent, not waived.** `outbox.ts:105`,
+`orderBy("id")` → `orderBy("")`. Re-demonstrated this session with a
+throwaway probe run from `packages/offline-sync` and deleted afterwards: on
+Dexie 4.4.6 an empty index spec resolves to the primary key path, so both
+forms return ids `1, 2, 3` in the same order (`identical: true`).
+
+**A second survivor was a flaky kill, and recording it as equivalent would
+have been wrong.** `outbox.ts:68`'s `padStart(2, "0")` is load-bearing:
+unpadded hex is ambiguous — `[0x01, 0x23]` and `[0x12, 0x03]` both render
+`"123"` — and the server coalesces on that key, so an unpadded key can merge
+two different actions into one. The existing test caught the mutant only
+about 47% of the time, which is a test defect wearing a gate's clothes. The
+replacement stubs `crypto.getRandomValues` to all `0x01` and pins
+`"01010101-0101-4101-8101-010101010101"`, a string no unpadded encoding can
+produce, so the kill is deterministic rather than lucky.
+
+EVIDENCE d2ac349 /Silid/reports/proof/mutation/offline-sync/mutation.json:1 — the committed gate report: 165 killed, 1 survived, 0 timeouts
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/outbox.ts:68 — the load-bearing padStart the flaky kill exposed
+EVIDENCE d2ac349 /Silid/packages/offline-sync/test/outbox.test.ts:37 — the stubbed-CSPRNG test that pins the fixed-width hex key
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/outbox.ts:105 — the one survivor, re-proven equivalent on Dexie 4.4.6
+
+STATUS: DONE — Deliverable 7 (the mutation gate on `packages/offline-sync`),
+99.40% kill rate with the single survivor's equivalence proven rather than
+assumed.
+
+### 2026-09-26 — Phase 05 session close (builder): Deliverables 1–7 closed, acceptance report ALL GREEN 8/8
+
+**Full verification battery, idle machine, 2026-09-26:**
+
+- `pnpm turbo run test --force` → 13/13 tasks, **407 passed, 1 skipped** (the
+  auth signup rate-limit skip). Per package: offline-sync 63, frontdesk 57,
+  api 64, schemas 53, auth 53, testing 78, db 22, audit 12, and 1 each for
+  landing, platform-admin, ui, config, utils.
+- `pnpm turbo run lint check-types` → 22/22 clean; `tsc --noEmit` exit 0;
+  `next build` succeeds.
+- `pnpm rule-lint` → clean, 31 files.
+- `pnpm test:e2e` → **20/20, twice**, 18 clips.
+
+**Acceptance report — generated, never hand-edited:**
+
+    node packages/testing/src/acceptance-report.ts \
+      --phase-file roadmap/05-frontdesk-shell-offline.md \
+      --results reports/proof/phase-05-results.json \
+      --out reports/phase-05-acceptance.md
+    wrote reports/phase-05-acceptance.md — ALL GREEN (8 capability lines)
+
+All 8 acceptance inputs are matched by a recorded result, each carrying all
+three proof slots. 11 of the 18 clips are cited across the capability lines;
+the one `none recorded — <reason>` disposition is the mutation gate, which
+has no screen to record. Two of the 12 offline-contract scenarios are
+request-only (the strict-envelope refusal, the coalescence check) and
+therefore record no clip — the report says so in the clip slot rather than
+leaving a bare placeholder for a reader to trip over.
+
+**Money Recomputation Gate: NOT TRIGGERED — stated, not assumed.** Phase 05
+produces no peso figure: the offline write contract moves already-priced
+payloads between the desk and the server, and the harness double is a test
+double with no catalogue. The gate's recorded status is `not-applicable`,
+not `pass`, and Phase 02's ZERO DRIFT report is untouched by any code in this
+phase.
+
+**One Definition-of-done clause could not be run as written, and what
+replaced it.** The DoD asks that "the server never stores a client-supplied
+authoritative timestamp (asserted by test against the local stack)". There is
+no local stack on this host — `docker` is not on PATH, so `supabase start`
+cannot run, the same environment limit Phases 02 and 04 recorded. The
+property is attacked at the server boundary instead, in two places: a
+`strictObject` envelope carrying a server-looking `receivedAt` is refused
+`400 harness_bad_envelope` with nothing written and nothing logged, and a
+legitimate replay is stored with a server-sealed `receivedAt` that parses
+strictly later than the desk's `enqueuedAt`, the desk's instant surviving
+only as `clientMetadata`. The substitute states its own limit honestly: the
+harness double is in-memory by design and has no table to query, so "never
+stored" is proven as "never accepted and never logged" rather than as a
+row-level database read. The double is in-memory deliberately — a test
+double that persisted would need a migration story for state no product
+reads.
+
+**No new decisions parked.** `DECISIONS-NEEDED.md` still carries only Phase
+04's D-001 (the stray `probe_once_marker` table) and D-002 (leaked-password
+protection). This phase hit no destructive operation, no data migration, no
+cutover, no go-live and no cost commitment, so nothing new was parked; the
+ledger header's `open_decisions` is corrected from its stale `0` to `2` to
+match that file.
+
+**Header correction, and why it is being made now.** At session start this
+entry's predecessor flagged the ledger as stale and declined to edit it, on
+the reasoning that the header is the runner's to flip. That was right about
+*another* phase's status and wrong about this one: `spec/00-master-goal.md`
+line 1119 says the ledger is "updated only at task and phase boundaries",
+which is a boundary this session is closing. The header now records Phase 05
+as in progress with Phase 04 marked builder-complete rather than done,
+because Phase 04's two dead EVIDENCE tags are still open in the runner's
+review gate — claiming otherwise here would be the builder closing another
+phase's gate.
+
+EVIDENCE 5b6ea61 /Silid/reports/phase-05-acceptance.md:1 — the generated acceptance report: ALL GREEN, 8/8 capability lines
+EVIDENCE 5b6ea61 /Silid/reports/proof/phase-05-results.json:1 — its recorded results input, one record per acceptance input
+EVIDENCE d2ac349 /Silid/tests/frontdesk/offline-contract.spec.ts:1 — the battery behind the eight capability lines
+EVIDENCE d2ac349 /Silid/reports/proof/mutation/offline-sync/mutation.json:1 — the mutation gate the eighth line reports
+
+STATE: SESSION CLOSED — Phase 05 builder-side complete. Deliverables 1–7
+closed with pasted verification, the acceptance report ALL GREEN 8/8, the
+mutation gate at 99.40%, and the two open items that are not this session's
+to close: the runner's Phase 05 review gate, and the two dead Phase 04
+EVIDENCE tags still parked with it. Next: Phase 06 (`06-sessions-rooms.md` —
+check-in/check-out with sealed totals, the room status machine, the overstay
+ladder, the double-booking guard), which is the first phase to consume the
+outbox and the online-only gate built here.
