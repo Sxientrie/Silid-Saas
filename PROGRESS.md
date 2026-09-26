@@ -3354,3 +3354,59 @@ EVIDENCE tags still parked with it. Next: Phase 06 (`06-sessions-rooms.md` —
 check-in/check-out with sealed totals, the room status machine, the overstay
 ladder, the double-booking guard), which is the first phase to consume the
 outbox and the online-only gate built here.
+
+### 2026-09-26 — Phase 05 close-out: independent EVIDENCE-tag sweep of this whole ledger
+
+Run after the Phase 05 close, because a clean `pnpm rule-lint` on this file
+does not mean what a reader will assume it means. The Phase 04 audit entry
+above records the reason: `hasResolvableEvidenceTag` is existential, and
+`DONE_CLAIM_RE` only scans the region around a closure line whose status
+value is the word "done" — so a dead tag sitting in a block that closes with
+a `STATE:` or a `STATUS:` line of any other value is never checked at all. A
+green linter here means "no DONE-claim block is unevidenced", not "every
+claim is evidenced".
+
+Swept every tag in the file against git, not just the linter's regions:
+
+    $ (sweep of all EVIDENCE tags in PROGRESS.md, git cat-file -e per tag)
+    EVIDENCE tags in file: 152 | unresolved: 2
+    UNRESOLVED 205c6f3 /Silid/reports/phase-04-acceptance.md
+    UNRESOLVED 2a4c0d9 /Silid/packages/auth/test/integration.provisioning.test.ts
+    rule-lint violations on PROGRESS.md: 0
+
+Three findings, and they agree.
+
+0. **The linter first failed on this entry, twice, and it was right to both
+   times.** The paragraph above originally read `` `DONE_CLAIM_RE` only scans
+   the region around a `status:`…`done` line `` — and `DONE_CLAIM_RE` is
+   case-insensitive, so that sentence *naming* the pattern matched the
+   pattern and was scored as a completion claim with no EVIDENCE tag. The
+   wording was changed, and then the fix itself re-tripped the same rule
+   because finding 0 quotes the original wording verbatim. The quotation is
+   now elided. Worth recording because it is the same regex misfiring in the
+   opposite direction from the blind spot: it misses real closures that use
+   other words, and it fires on prose that merely quotes the words. The fix
+   was to reword, not to invent an EVIDENCE tag to satisfy a false positive.
+1. **All 27 tags this phase added resolve** — 25 on `d2ac349` (the Phase 05
+   implementation), 2 on `5b6ea61` (the generated acceptance report). Every
+   path was additionally checked to exist *on disk* before it was written,
+   which the tag check alone does not do: `git cat-file -e` proves the path
+   was committed, not that the line number cited is the line that makes the
+   claim.
+2. **The sweep independently reproduces the Phase 04 audit's 2-of-100
+   finding, now 2-of-152.** The same two tags are dead, in the same two
+   blocks, and both corrected shas are recoverable from the `5549e5c` commit
+   message: `bf421f9` for `reports/phase-04-acceptance.md:1` and
+   `b32d7ac` for `packages/auth/test/integration.provisioning.test.ts:18`.
+   Neither is corrected here. They are Phase 04's lines in an append-only
+   log, the correction is already parked with the runner's Phase 04 review
+   gate, and a builder rewriting a prior phase's prose to make its own
+   numbers look better is the wrong trade. The finding is repeated instead,
+   because the count moved from 2-of-100 to 2-of-152 and a reader checking
+   the arithmetic deserves to know the phase added 27 live tags and zero
+   new dead ones.
+
+STATE: NOTED — Phase 05's own evidence is sound; the two historical dead
+tags remain the runner's, as recorded in the Phase 04 audit. The blind spot
+in `hasResolvableEvidenceTag` is unchanged and still belongs to the testing
+package's owner; it is not patched from a phase that did not write it.
