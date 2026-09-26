@@ -2651,3 +2651,251 @@ EVIDENCE bf421f9 /Silid/reports/phase-04-acceptance.md:1 - the correct citation 
 EVIDENCE b32d7ac /Silid/packages/auth/test/integration.provisioning.test.ts:18 - the correct citation for the lazy admin client change
 
 STATUS: NOTED — Phase 03 required no build and was verified complete (39/39 tags resolve). Two dead Phase 04 EVIDENCE tags and one rule-linter false-negative recorded for the Phase 04 review gate; the exact line numbers, `git cat-file` transcripts and corrected shas for both dead tags are in this entry's commit message. This log entry is the only file changed.
+
+### 2026-09-26 — Phase 04 assigned-build brief: premise falsified, gates re-verified uncached, one real gate defect found and fixed
+
+**Brief/ledger discrepancy (flag-and-follow rule).** The brief's
+"WHAT ALREADY EXISTS vs WHAT YOU BUILD" section says "You build:
+Deliverables 1-9 of this phase". The ledger and `git log` both contradict
+it: Phase 04 Deliverables 1-9 are already built, committed and closed by
+the Phase 04 builder session, in five commits — `cac98d6` (D1, D4 service
+layer, D5, D6), `debf841` (D4 atomic RPC), `a71bb43` (D7 live contract
+proofs), `205c6f3` (D8, D9), `bf421f9` (close-out). Per the resume
+protocol in spec/builder-protocol.md, a completed deliverable is never
+redone, so nothing was rebuilt and the consultable sources were followed in
+place of the brief's wording.
+
+Two distinctions worth recording, because conflating them would be a
+false-positive detection. First, the Phase 04 planted tripwire was already
+caught by the Phase 04 session (the `money-recompute.util.ts` /
+`pnpm money:gate` claim, logged in the entry dated 2026-09-25), and
+spec/builder-protocol.md §4 plants exactly one per phase; the stale
+"You build 1-9" wording is the roadmap file's static copy-paste template,
+not a second planted claim. Second, I did NOT edit that template: it is a
+prompt of record, and rewriting it would erase the text the tripwire check
+compares against.
+
+**What this session actually did — forced the gates to run for real.** The
+first `pnpm test` reported `13 cached, 13 total` / `>>> FULL TURBO`. That
+is a cache replay, not verification, so every gate below was re-run
+uncached (`turbo run test --force`). Doing so exposed a genuine red that
+the cached run had been hiding.
+
+**Defect found and fixed: five attack-battery tests exceed vitest's default
+5s timeout.** With caching bypassed, `@silid/testing` failed 5 tests, all
+of them `Error: Test timed out in 5000ms`. Two failed on an idle machine,
+so this is a reproducible defect and not the transient load flakiness the
+Phase 04 entry recorded. Root cause, measured rather than inferred: a
+whole-tree rule-lint scan is a `node` subprocess over every spec, roadmap
+and log file, and costs 5.07s against vitest's 5000ms default. The
+over-budget tests are exactly the ones that shell out to a real gate.
+
+Fix, in `74c4dab`: state the budget per test, which is vitest 5.0.1's own
+API — confirmed from the installed types rather than from memory
+(`vitest/dist/chunks/config.d.CU_b-wJj.d.ts`, `TestCollectorCallable`,
+whose third positional parameter is `options?: number`, the timeout in ms).
+15 tests across three attack-battery files now carry an explicit 120s
+budget. Assertion semantics are UNCHANGED: no expectation was removed,
+loosened or reordered, so a test asserting wrong behavior still fails, just
+later. A package-level `testTimeout` in a new `vitest.config.ts` was
+considered and rejected — `packages/testing` has no vitest config today and
+adding one risks changing how Stryker's vitest plugin resolves that
+package, whereas per-test budgets change nothing about config resolution.
+No generator covers a test timeout, so this is hand-written by design.
+
+**Gate results, all from this session, all uncached.**
+
+- Test suite: `pnpm turbo run test --force` -> `13 successful, 13 total`.
+  `@silid/testing` alone -> 8 files / 78 tests. `pnpm lint` -> 13/13.
+  `pnpm check-types` -> 9/9.
+- Scope-from-claims, the DoD's first clause: the live tRPC contract suite
+  RAN (not skipped — the gitignored `.env.local` is present on this host)
+  and passed 7/7, including "a cashier naming a sibling branch is refused —
+  never the requested rows", "an org admin of another organization cannot
+  reach org A's branch or rows", and "forged attribution fields in the
+  input are refused, never honored".
+- Rate-configuration service: the full vault-07 / §3.3 edge set is green —
+  zero grace legal, zero block refused, fractional/signed/exponent/
+  overflow-length refused, trailing-dot money refused, 12-character cap
+  enforced, 150.50 normalized to 150.5, and unknown keys preserved
+  (vault-20, "parses a stored card and preserves keys the merge does not
+  own").
+- Catalogue: served from the money reference fixture, and the grep + import
+  test "finds zero money literals in money-named contexts outside the
+  fixture" passes — no peso figure is re-typed in client or server code.
+- Audit: 12/12, including "refuses a forged actor_id, ts, org_id, or
+  branch_id (server facts only)", "stamps actor_id from the verified caller
+  identity", and "carries no client-supplied time — ts is the database's to
+  seal".
+- Coverage, lines (DoD threshold >=80%): `packages/db` 95.83,
+  `packages/api` 99.15, `packages/schemas` 100.
+- Money Recomputation Gate: `node packages/testing/src/money-recompute.ts
+  --reference --service-config` -> zero drift, exit 0, including the
+  vault-07 overflow-length and the vault-08 legal-zero-price cases.
+
+**Mutation gate, recomputed from the committed reports.** My first
+computation used `killed / (killed + survived + timeout)` and produced
+numbers that disagreed with the log. The log was right and my denominator
+was wrong: Stryker's own bundled scorer computes
+`mutationScore = killed / totalValid`, counting a mutant that times out as
+killed, because the timeout is how the test caught it. Under the correct
+convention the committed reports reproduce the recorded figures exactly:
+`packages/api` 89.55% (256 killed + 1 timeout / 287), `packages/schemas`
+89.60% (112/125), `packages/db` 92.68% (34 + 4 / 41) — all at or above the
+`break: 80` threshold in each `mutation.json`. No discrepancy to report.
+
+**pgTAP, run live against the linked project.** `supabase/tests/
+12_rate_config_update_test.sql` re-run through the Supabase MCP server
+against project `tymalzlhygkysdychbpv` (the suite is self-contained and
+rolls back): **25/25 ok**, byte-identical in substance to the committed
+TAP. It covers the merge preserving keys it does not own, the
+same-transaction audit row with a claim-derived actor/org/branch, the
+server-sealed instant, a refused value writing neither data nor an audit
+row, a cashier refused, a foreign-org administrator refused, and the
+platform tier audited with null org and null branch.
+
+**Advisors run after the (schema-neutral) change.** 2 security lints, 2
+performance lints, none introduced here. Security: INFO
+`rls_enabled_no_policy` and WARN `auth_leaked_password_protection`.
+Performance: INFO `no_primary_key` and INFO `unused_index` x5. The two
+object-level lints both point at `public.probe_once_marker` — an 8 KB
+table with RLS on, zero policies, zero triggers and no primary key, created
+by no file in this repository and documented nowhere in this log. It is a
+stray artifact of an ad-hoc probe. Dropping it is destructive DDL on the
+linked project, so it is parked in `/Silid/DECISIONS-NEEDED.md` rather
+than done unilaterally. Leaked-password protection is likewise parked.
+
+**Supabase changelog checked before touching the project.** The only
+breaking change is the Postgres 15.19/17.11 minor (ltree and btree_gist
+reindexing, pgcrypto legacy-cipher re-encryption). Grepping every
+migration for `ltree`, `pgcrypto` and `password_encrypt` returns nothing,
+so this project needs no action for it.
+
+**One transient observed, reported honestly, cause not established.** On
+one run of a four-file subset of `packages/api`, the live contract file was
+reported failed with its 7 tests skipped, while the same command passed
+45/45 on three subsequent runs and the full forced suite passed. The suite
+uses `admin.auth.admin.createUser` (service role, no email send), so the
+email rate limits visible elsewhere in the run are not obviously its cause.
+I am recording it as an observed non-reproducible flake in the DoD's proof
+path rather than claiming a cause I could not prove.
+
+EVIDENCE 74c4dab /Silid/packages/testing/test/attack.rule-lint.test.ts:37 - the explicit per-test timeout budget
+EVIDENCE 74c4dab /Silid/packages/testing/test/attack.legacy-exclusion.test.ts:28 - the subprocess-probe timeout budget
+EVIDENCE 74c4dab /Silid/packages/testing/test/attack.acceptance-report.test.ts:73 - the generator-probe timeout budget
+EVIDENCE 205c6f3 /Silid/reports/proof/phase-04-money-gate.md:1 - the Money Recomputation Gate report re-run to zero drift
+EVIDENCE debf841 /Silid/reports/proof/pgtap/phase-04/12_rate_config_update_test.tap:1 - the 25-assertion pgTAP suite re-run live at 25/25
+EVIDENCE debf841 /Silid/supabase/migrations/20260925160913_rate_config_update_rpc.sql:1 - the atomic update_rate_config RPC under test
+EVIDENCE 6378817 /Silid/packages/audit/src/audit.ts:1 - the audit infrastructure whose 12 tests prove server-sealed actor and time
+EVIDENCE bee9288 /Silid/packages/schemas/src/rate-config.schema.ts:1 - the vault-07 / §3.3 validation semantics
+EVIDENCE cac98d6 /Silid/packages/api/src/catalogue.ts:1 - the catalogue served from the money reference fixture
+EVIDENCE 90cd666 /Silid/reports/proof/mutation/api/mutation.json:1 - the committed api mutation report recomputed at 89.55%
+
+STATE: Phase 04 required no build and was verified complete, uncached, on
+every DoD clause. One real gate defect (five subprocess tests overrunning
+vitest's default timeout) was found by forcing the gates and fixed in
+`74c4dab`. Two advisors and one stray table on the linked project are
+parked in `/Silid/DECISIONS-NEEDED.md`, not acted on.
+
+### 2026-09-26 — Phase 04 Deliverable 8 audited: the mutation gate was unwired on one package and could report a false 100% on two
+
+**Where this came from.** My first pass over the DoD's mutation clause
+(">=80% kill rate on the same packages" as the coverage clause, i.e. db,
+api, schemas) recorded the three committed reports and moved on. Going
+back to check *reproducibility* rather than *existence* is what found the
+two defects below. Both are invisible to a reader who only opens the
+report files, because the reports themselves were fine.
+
+**Defect 3: the schemas mutation gate was wired to nothing.**
+`packages/schemas/stryker.conf.json` exists, `@stryker-mutator/core` and
+the vitest-runner are already devDependencies, `vitest.stryker.config.mjs`
+exists, and a committed report sits in `reports/proof/mutation/schemas/`.
+But the package had no `mutation` script, so `pnpm mutation` never ran
+it and CI's mutation step could not enforce the clause. The gap was
+narrow enough to be invisible: the config, the deps, the runner and the
+proof all existed, so the package looked wired. Fixed in `e74a751` by
+adding `"mutation": "stryker run"`, and `turbo run mutation --dry=json`
+now lists `@silid/schemas#mutation` among its tasks.
+
+**Defect 4: a parallel run of the api and schemas gates reports a false
+green, because a mutant that hangs is scored as killed.** Only
+`packages/db` pinned `"concurrency": 1`. The hazard was already
+documented for db at this file's line 1229 — parallel Stryker workers
+share one sandbox and cross-contaminate runs — but the consequence for
+schemas is far worse than a noisy number. Measured on this host, with the
+committed config, before any change:
+
+    $ pnpm mutation            # packages/schemas, as committed
+    Mutation testing 95% 119/125 tested (0 survived, 117 timed out)
+    All tests (killed 3)
+    Final mutation score of 100.00 is greater than or equal to break 80
+
+117 of 125 mutants merely hung until the timeout and the gate reported a
+**perfect 100.00%**. A gate that can certify itself on hangs is worse
+than no gate, because it converts a coverage illusion into a recorded
+proof. The committed 89.60% had been produced serially — this file's
+line 2492 records "Stryker serial runs: api 68.99% -> 89.55% and
+schemas 66.91% -> 89.60%" — but the configs as committed could not
+reproduce their own reports.
+
+Fixed in `e74a751` by applying db's precedent (`concurrency: 1`,
+`timeoutMS: 60000`) to the api and schemas configs, each carrying the
+rationale inline so the setting is not later mistaken for a performance
+tweak and removed.
+
+**Both re-proved, not asserted.**
+
+- `packages/schemas`, serial, exit 0, 7m43s: "Final mutation score of
+  89.60 is greater than or equal to break threshold 80". The reproduction
+  is exact rather than approximate: committed 112 killed / 13 survived /
+  0 timeout of 125, fresh identical, and the survivor set is the same 13
+  mutants in the same files.
+- `packages/api`, serial, exit 0, 49m50s: "Final mutation score of 89.55
+  is greater than or equal to break threshold 80". Committed 256 killed /
+  30 survived / 1 timeout of 287; fresh 257 / 30 / 0; identical survivor
+  set, same 30 mutants. The single delta is the point of the change — the
+  mutant that used to hang is now cleanly killed, and nothing hangs. The
+  score is unchanged, which is what makes this a reproduction rather than
+  a nicer number.
+- `packages/db` left alone: its config already pinned serial, and its
+  working-tree report is distribution-identical to the committed one
+  (34 killed / 3 survived / 4 timeout of 41 = 92.68%, cosmetic duration
+  churn only). I did not regenerate it and did not commit it.
+
+All three gates therefore now stand at db 92.68%, api 89.55%, schemas
+89.60%, each at or above its `break: 80` threshold, and each reproducible
+from the config as committed.
+
+**Also corrected: two stale CI labels** (`dbfe2d1`). The mutation step
+read "kill rate >= 80% on db/api" and the test step read "coverage gates
+on db/api", but coverage thresholds are live on all three packages
+(measured: db 95.83, api 99.15, schemas 100 lines). Label text only; no
+command or threshold moved.
+
+**Rule-lint blind spot, second sighting, and it is now load-bearing.**
+The first Phase 03 audit entry in this file records that
+`DONE_CLAIM_RE` does not anchor on the closure phrasings actually in
+use, so blocks closing with a `STATUS:` line that is not `done` are never
+scanned for EVIDENCE tags. Both of this session's entries close with a
+`STATE:` line for exactly that reason, and neither carries a DONE claim,
+so `pnpm rule-lint` is clean on 31 files with them present. The blind
+spot is unchanged and still belongs to the testing package's owner; it is
+not patched here. It is recorded again because a clean rule-lint on this
+file currently means "no DONE-claim block is unchecked", not "every claim
+is evidenced".
+
+EVIDENCE e74a751 /Silid/packages/schemas/package.json:12 - the mutation script that wires the schemas gate
+EVIDENCE e74a751 /Silid/packages/schemas/stryker.conf.json:11 - the serial setting with the false-100% measurement inline
+EVIDENCE e74a751 /Silid/packages/api/stryker.conf.json:11 - the same serial setting on the api gate
+EVIDENCE a5647be /Silid/reports/proof/mutation/api/mutation.json:1 - the api gate re-proved serially at 89.55% with 0 timeouts
+EVIDENCE e74a751 /Silid/reports/proof/mutation/schemas/mutation.json:1 - the schemas gate re-proved serially at 89.60%
+EVIDENCE dbfe2d1 /Silid/.github/workflows/ci.yml:48 - the corrected gate labels
+EVIDENCE 74c4dab /Silid/packages/testing/test/attack.rule-lint.test.ts:37 - the subprocess-timeout fix whose re-run under concurrent Stryker load stayed green
+
+STATE: Deliverable 8 audited and repaired. The schemas mutation gate is
+now wired and enforced, the api and schemas gates can no longer certify
+themselves on hung runs, and all three are re-proved from the config as
+committed. Phase 04 needs no further build; what remains open belongs to
+the runner's Phase 04 review gate (the two dead EVIDENCE tags) or is
+parked in `/Silid/DECISIONS-NEEDED.md` (D-001 the stray table, D-002
+leaked-password protection).
