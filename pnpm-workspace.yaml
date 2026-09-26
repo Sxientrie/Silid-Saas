@@ -3,6 +3,14 @@ packages:
   - "packages/*"
 allowBuilds:
   '@sentry/cli': true
+  # Both native-toolchain packages ship their platform binary as an
+  # optionalDependency (@swc/core-win32-x64-msvc, @esbuild/win32-x64), so
+  # neither postinstall is needed: each was verified to transform TypeScript
+  # with its build script ignored. Denying the script is the reviewed
+  # decision; it also clears the unresolved `set this to true or false`
+  # placeholder pnpm writes, which made every `pnpm add` exit 1 under
+  # strictDepBuilds.
+  '@swc/core': false
   esbuild: false
   sharp: false
   unrs-resolver: false
