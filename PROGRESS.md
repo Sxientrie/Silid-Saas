@@ -5,9 +5,9 @@
   "schema": "silid-progress/2",
   "last_updated": "2026-09-26",
   "current_phase": "05",
-  "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "in_progress" },
-  "last_commit": "5b6ea61",
-  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
+  "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "builder-complete" },
+  "last_commit": "9ec6aad",
+  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. The DoD's replayed-write seal is no longer a substitution: supabase/tests/13_replay_seal_test.sql ran 18/18 against the linked project via Supabase MCP, and the server-side idempotency gap it uncovered is located in the ledger. Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
   "open_decisions": 2
 }
 ```
@@ -3410,3 +3410,126 @@ STATE: NOTED — Phase 05's own evidence is sound; the two historical dead
 tags remain the runner's, as recorded in the Phase 04 audit. The blind spot
 in `hasResolvableEvidenceTag` is unchanged and still belongs to the testing
 package's owner; it is not patched from a phase that did not write it.
+
+---
+
+### 2026-09-26 - Phase 05 correction: the replayed-write seal is RUN, not substituted
+
+The last open builder item on Phase 05, and it was a false statement in my own
+report. Capability 4 of `reports/phase-05-acceptance.md` carried the sentence
+"NOT RUN: the DoD's pgTAP assertion that the server never stores a
+client-supplied authoritative timestamp, because it needs `supabase start` and
+this host has no Docker daemon". That reasoning was too strong, and this
+ledger is why: Phases 02 and 04 both recorded the Supabase MCP path against
+the linked project as the sanctioned substitution for an unavailable local
+stack, and a real Postgres with real RLS, real grants and real triggers is a
+strictly stronger witness than the in-memory harness double I had substituted
+at the app boundary. I had substituted a weaker proof and then described the
+stronger one as impossible. The assertion has now actually been run.
+
+**What the catalog said before any test was written.** Read against the linked
+project, all seven state-changing `public` functions are
+`close_session`, `close_shift`, `create_branch`, `deactivate_staff`,
+`merge_rate_config`, `record_shift_count`, `update_rate_config`,
+`void_session` - and not one of them takes a timestamp parameter. That is the
+structural half of the property: a desk has no parameter to forge an instant
+into. The behavioural half is five `BEFORE INSERT` seal triggers, each of
+which does `new.<instant> := clock_timestamp()`, and each gated on
+`auth.uid() is not null` so it fires for a client and not for a server job.
+`sessions.booked_end_at` has no column default at all, because the trigger
+derives the overstay deadline from the server's own check-in instant rather
+than taking one - a desk that could set that column could move every deadline
+in the ladder.
+
+**New file, and it is picked up with no wiring.** `supabase db test` globs
+`supabase/tests/*.sql` (`ci.yml:9`), and `vault-goldens.test.ts` only pins
+vault-to-suite mappings that already exist, so a thirteenth suite needs no
+registration on either side. 18 assertions, one behaviour each, inside
+`begin` / `rollback` so the proof leaves no residue.
+
+EVIDENCE a3415dc /Silid/supabase/tests/13_replay_seal_test.sql:1 - the DoD's
+own pgTAP assertion, written and run
+
+**Two of my own assertions were wrong before the suite was green, and both
+were caught by reading real output rather than by reasoning.** Worth
+recording, because in both cases the first version was a claim I believed and
+the output said otherwise.
+
+1. The seal-closure assertion was over-broad. I asserted that *every*
+   client-insertable table has a `BEFORE INSERT` seal trigger. It reported 4
+   offenders: `branches`, `organizations`, `rooms`, `staff` - the catalog and
+   claim tables, whose `created_at` is administrative and which no replayed
+   write ever targets. Weakening it to "the fact tables" would have been the
+   easy fix and would have been a defect: it would have let a new unsealed
+   fact table pass forever. The shipped form instead asserts the exemption
+   set *by name*, so the closure is still total and drift is still loud.
+2. Two assertions failed with `have: NULL` against a real cashier JWT. The
+   cause is not RLS hiding the row and not a failed write - it is that
+   `audit_log`'s SELECT policy admits only platform and org admins, while its
+   INSERT policy admits a cashier. A cashier can append to the ledger and
+   cannot read it back. I had written the read-back as the client, which
+   proves nothing about storage. The stored value is now read as a trusted
+   role, and the client's own inability to read the ledger is asserted in its
+   own right rather than quietly designed around.
+
+**Verification, live against the linked project 2026-09-26.** Every TAP line
+captured, so the verdict and the per-test lines come from one result set
+rather than from a summary line that could hide a failure:
+
+    {"failed":0,"total":18,"tap_lines":"ok 1 - A1 no state-changing public
+    function accepts a timestamp parameter | ok 2 - A2 authenticated holds no
+    UPDATE or DELETE on any fact table | ok 3 - A3 unsealed client-insertable
+    tables are exactly the four catalog tables | ok 4 - A4 every seal stamps
+    clock_timestamp() | ok 5 - A5 booked_end_at carries no column default |
+    ok 6 - B1 shift opened_at sealed | ok 7 - B2 shift opened_by sealed |
+    ok 8 - B3 session checked_in_at sealed | ok 9 - B4 forged future
+    discarded | ok 10 - B5 booked_end derived from server instant |
+    ok 11 - B6 canteen sold_at sealed | ok 12 - B7 addon added_at sealed |
+    ok 13 - B8 a cashier can append an audit row but cannot read the ledger
+    back | ok 14 - B9 audit ts sealed | ok 15 - B10 audit actor_id sealed |
+    ok 16 - B11 client cannot amend a server-stamped instant |
+    ok 17 - B12 sealed instant intact after refusal |
+    ok 18 - B13 refused amendment created nothing"}
+
+    $ node -e "…count pgTAP assertions in the suite…"
+    assertions: 18 plan: 18 MATCH
+
+The behavioural half replays five writes as a real cashier, each carrying a
+forged instant - 1999 on the shift, the audit row, the canteen sale and the
+add-on; 2099 on the check-in, because a forward-dated check-in is the one
+that would move every overstay deadline - and, where the column exists, a
+forged `opened_by` and `actor_id`. Every one stores the server's instant and
+the authenticated caller's identity. The last three assertions are the attack
+a seal alone would not stop: a later request trying to *correct* the stored
+instant is refused 42501, the stored value is unchanged, and nothing was
+written.
+
+EVIDENCE 9ec6aad /Silid/reports/proof/phase-05-results.json:30 - capability 4
+rewritten from NOT RUN to the real run, with the substitution disclosed
+
+**A gap this work surfaced, recorded rather than papered over.** The same
+DoD sentence opens "Replayed writes carry idempotency keys", and that half is
+only true on the desk today. The desk carries the key, the strict envelope
+carries it, and the harness double coalesces on it - but a query for any
+column in the `public` schema matching `%idempot%`, `%request_key%` or
+`%dedup%` returns the empty set. There is no server-side dedupe store, so the
+database cannot yet coalesce a duplicate replay of its own accord. Phase 05's
+scope says so honestly ("no business features exist yet - the contract is
+proven against an explicitly marked harness-only test double"), and building
+an idempotency store for procedures that do not exist would be building ahead
+of Phase 06 and Phase 08. The obligation is therefore located rather than
+discharged: **the phase that adds the first real business write path must add
+the server-side idempotency store with it**, or a duplicate replay will
+double-apply. This is not a `DECISIONS-NEEDED.md` entry - it is not
+user-gated and there is no decision to hand back - it is a forward obligation
+in this ledger, and `open_decisions` stays 2.
+
+**Header corrected in the same pass.** Phase 05 moves from `in_progress` to
+`builder-complete` for the same reason Phase 04 carries that value rather than
+`done`: the builder's work is finished and every tag this phase added
+resolves, but the phase has not yet cleared the runner's review gate, and
+marking it finished from this side would claim a gate I cannot see.
+
+STATUS: DONE - the DoD's replayed-write assertion is now executed against a
+real database and green 18/18, the acceptance record says so, and the
+server-side idempotency gap it uncovered is located in this entry.
