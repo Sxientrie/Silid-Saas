@@ -50,3 +50,23 @@ file and section, the old rule, the new rule, and the reason (per
   wording let an org_admin mint a `platform_admin` staff row through the
   plain PostgREST insert and update paths; the migration is
   `20260925033754_staff_role_tenant_only`.
+- 2026-09-26 — Phase 05 — `spec/tech-stack.md` version-and-source table,
+  Serwist row — the parenthetical named `@serwist/next` as the Next.js
+  integration — it now names `@serwist/turbopack`, and the row records why
+  the two are not interchangeable — reason: verify-before-you-trust at use
+  time. Both packages exist at the same 9.5.12 and neither is deprecated
+  (`pnpm view @serwist/next version` → 9.5.12, `pnpm view
+  @serwist/turbopack version` → 9.5.12), so the line was not naming a
+  phantom. What the live source settles is which one this stack can use:
+  `@serwist/next` reaches the build only through a `webpack(config,
+  options)` hook and pushes `@serwist/webpack-plugin`'s `InjectManifest`
+  into `config.plugins`
+  (`@serwist/next@9.5.12/dist/index.mjs`, `#region src/index.ts`), and its
+  own Turbopack warning names the alternative — "Migrate to
+  '@serwist/turbopack' which has experimental support for Turbopack". The
+  three apps build with Turbopack, and Next 16 fails the build outright
+  when it finds a webpack config, so the webpack integration could not be
+  the one. Installed and used: `@serwist/turbopack@9.5.12`
+  (`apps/frontdesk/next.config.ts`, `src/app/sw.ts`,
+  `src/app/layout.tsx`). Version line unchanged.
+

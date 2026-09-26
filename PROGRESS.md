@@ -2899,3 +2899,176 @@ committed. Phase 04 needs no further build; what remains open belongs to
 the runner's Phase 04 review gate (the two dead EVIDENCE tags) or is
 parked in `/Silid/DECISIONS-NEEDED.md` (D-001 the stray table, D-002
 leaked-password protection).
+
+### 2026-09-26 — Phase 05 session start (builder): Frontdesk Shell & Offline Contract
+
+Resumed from HEAD `bef5b45`. Read in full this session, from disk:
+`spec/authentication.md`, `spec/multi-tenancy.md`, `spec/project-overview.md`,
+`spec/supabase.md` (§1–§8 in full), `spec/offline-sync.md`,
+`roadmap/05-frontdesk-shell-offline.md` (all 7 Deliverables, the
+copy-paste prompt, the technical Definition of done, the 8
+acceptance-report inputs), and on disk: `apps/platform-admin/src/proxy.ts`,
+`src/app/(admin)/actions.ts`, `src/app/signin/page.tsx`,
+`src/lib/supabase/{proxy,server,client}.ts`, `packages/auth/src/*`,
+`packages/api/src/data-client.ts`, `playwright.config.ts`,
+`tests/frontdesk/frontdesk.spec.ts`,
+`tests/platform-admin/{platform-admin,operator-flow}.spec.ts`,
+`packages/testing/src/rule-lint.ts`, `turbo.json`, `pnpm-workspace.yaml`,
+`.github/workflows/ci.yml`, and `PROGRESS.md` in full.
+`/Silid/tripwire-registry.json` was not read and is not on any reading list.
+
+**Ground truth read from the installed Next 16.3.5 tree, not from memory.**
+The `AGENTS.md` shipped in the app directs the reader to
+`node_modules/next/dist/docs/` before writing any code ("This is NOT the
+Next.js you know"). In a pnpm monorepo `next` is not resolvable from the
+repo root; it resolves from the app directory. Three findings changed the
+plan:
+
+1. `01-app/01-getting-started/16-proxy.md:15` — "Starting with Next.js 16,
+   Middleware is now called Proxy". `src/proxy.ts` (as Phase 03 already
+   used) is correct and current; `middleware.ts` is the deprecated spelling.
+2. `01-app/02-guides/progressive-web-apps.md:674` — the on-disk Next 16 PWA
+   guide names Serwist as the option for "full service-worker-based offline
+   caching" and links **both** a Turbopack and a webpack Serwist example.
+3. `01-app/02-guides/offline-support.md:139` — the experimental
+   `useOffline` flag explicitly does **not** cover the case this phase
+   needs: "A full page reload while offline still fails because the browser
+   needs the network to deliver the HTML; full offline loads would need a
+   service worker." So the service worker is load-bearing, not optional, and
+   `experimental.useOffline` is not a substitute for it. Not enabled: it is
+   flagged experimental, and the offline contract's own gate (Deliverable 3)
+   is the governing mechanism.
+
+**Serwist API verified from the installed package types** (level 1, not
+docs recall) — `@serwist/turbopack/dist/index.d.mts` exports exactly
+`createSerwistRoute`, `withSerwist`, and (subpath) `SerwistProvider`/`useSerwist`;
+`@serwist/turbopack/dist/index.worker.d.mts` exports `defaultCache`;
+`serwist/dist/index.d.mts` exports the `Serwist` class, `CacheFirst`,
+`NetworkFirst`, `StaleWhileRevalidate`, `ExpirationPlugin`,
+`CacheableResponsePlugin`, and the `SerwistGlobalConfig` type
+(`__WB_DISABLE_DEV_LOGS`). One host-specific default read straight off the
+type: `useNativeEsbuild` "Defaults to `false` if not on Windows, `true`
+otherwise" — on this Windows host the default would demand the
+**`esbuild-wasm` optional peer, which is not installed**, so it is set
+explicitly to `true` to use the native `esbuild` that is installed.
+
+**Registry re-verification** (`pnpm view <pkg> version`, 2026-09-26) against
+`spec/tech-stack.md`: dexie **4.4.6** (table: 4.4.6 — match), serwist
+**9.5.12** (table: 9.5.12 — match), @serwist/turbopack **9.5.12**,
+esbuild **0.28.2** (peer range `>=0.25.0 <1.0.0` — satisfied), fake-indexeddb
+**6.2.5**, @playwright/test **1.63.0** (table: 1.63.0 — match), typescript
+**7.0.2** (match).
+
+**Discrepancies found. Prompt/ledger/spec claims checked against consultable
+sources; the source wins, per the phase's closing instruction.**
+
+1. **`spec/tech-stack.md:32` names the wrong Serwist integration package.**
+   The table reads "9.x (9.5.12; **@serwist/next** for the Next.js
+   integration)". `@serwist/next` is real and still published at 9.5.12
+   (verified), but it is the **webpack** path (`withSerwistInit`), and
+   `01-installation.md:156` states "Turbopack is now the default bundler.
+   To use Webpack run `next dev --webpack`". This workspace's `next build`
+   and `next dev` both use Turbopack, so the integration package is
+   **`@serwist/turbopack`**. The table is amended in this phase with a
+   `spec/CHANGELOG.md` entry in the same commit, per the amendment rule.
+2. **`pnpm-workspace.yaml` carried pnpm's own unresolved build-script
+   placeholder.** The file contained the literal string
+   `'@swc/core': set this to true or false`. This is **not** a planted
+   defect: `pnpm.io/settings#allowbuilds` documents that "dependencies with
+   ignored builds that are not yet listed in `allowBuilds` are
+   automatically added to `pnpm-workspace.yaml` with a placeholder value, so
+   you can manually set them to `true` or `false`". Because
+   `strictDepBuilds` defaults to `true`, every `pnpm add` in the repo was
+   exiting **1**. Resolved to `false` — but only after verifying empirically
+   that neither package needs its postinstall: `esbuild` and `@swc/core`
+   were each asked to transform TypeScript with their build scripts
+   ignored, and both succeeded (`esbuild OK: const x = 1;`, `swc OK: var x
+   = 1;`), because each ships a platform `optionalDependency`
+   (`@esbuild/win32-x64`, `@swc/core-win32-x64-msvc`) carrying the native
+   binding. `pnpm install` now exits 0. The rationale is inline in the file.
+3. **`PROGRESS.md`'s header is stale, not corrupt.** It claims
+   `last_commit: f3d0bf6`, `phase_status` 01/02/03 only, and a
+   `resume_point` that still points at "Next: Phase 04". Disk says Phase 04
+   is built and gated (db 92.68% / api 89.55% / schemas 89.60%, reports
+   committed) and HEAD was `bef5b45`. Flagged, **not** edited: the header is
+   the runner's to flip at its per-phase review gate, and this session has
+   no business rewriting another phase's status. Phase 05 does not begin
+   from the header's resume_point; it begins from HEAD.
+4. **Two patch-level drifts, deliberately not chased.** The registry's
+   `latest` for `next` is **16.3.6** and for `vitest` is **5.0.2**, while
+   the workspace pins `next` 16.3.5 and `vitest` 5.0.1. Both pins match
+   `spec/tech-stack.md` and were verified as registry-current in Phase 01.
+   `@vitest/coverage-v8` is pinned to **5.0.1** (not the 5.0.2 latest)
+   because the coverage provider must match the pinned `vitest` minor —
+   the same choice `packages/db`, `api`, and `schemas` already made. Bumping
+   a framework patch mid-phase, against a spec table, is a scope decision
+   for the runner, not a builder's.
+
+**Environment limits, recorded honestly and matching Phases 01–04:** no
+Docker daemon (`docker` is not on PATH), so `supabase start` cannot run and
+the local emulated stack is unavailable — the "asserted by test against the
+local stack" clause in the Definition of done is met by the same
+substitution Phases 02 and 04 used: the linked project
+`tymalzlhygkysdychbpv` through the Supabase MCP server, with any write
+wrapped in a rolled-back transaction so the proof leaves no residue. No
+`SUPABASE_ACCESS_TOKEN`, `SENTRY_AUTH_TOKEN`, or Vercel/GitHub token in the
+environment. The gitignored root `.env.local` **is** present on this host,
+so the live E2E suites run here and the skip path exists for CI.
+
+**Generator-first: what was run, in order, before any hand-written code.**
+
+- `pnpm --filter @silid/offline-sync add dexie@4.4.6 dexie-react-hooks@4.4.0`
+- `pnpm --filter @silid/offline-sync add -D @vitest/coverage-v8@5.0.1 @stryker-mutator/core@10.0.0 @stryker-mutator/vitest-runner@10.0.0 fake-indexeddb@6.2.5`
+- `pnpm --filter @silid/frontdesk add @serwist/turbopack@9.5.12 serwist@9.5.12`
+- `pnpm --filter @silid/frontdesk add -D esbuild@0.28.2`
+- `pnpm --filter @silid/frontdesk add @silid/offline-sync@workspace:*`
+- `pnpm --filter @silid/frontdesk exec shadcn add card input label badge alert separator -y`
+  (CLI interface confirmed with `shadcn add --help` first; created 6 files)
+- No manifest was hand-edited; `pnpm-lock.yaml` is committed.
+
+**No-generator rationale (recorded per `spec/monorepo-structure.md` §4 and
+the phase prompt).** `packages/offline-sync` has no dedicated generator —
+it is one of the hand-written package skeletons §4 already lists, including
+by name. Within it, the **Dexie schema, the Serwist wiring, and the outbox
+contract have no generator either**: no scaffolder emits an IndexedDB
+schema or an offline write queue, and Serwist's own tooling builds the
+service worker but does not author the app-shell precache policy or the
+outbox's durability and ordering rules. Those are hand-written to each
+library's official docs, minimally. The one generator that *does* apply to
+the shell — shadcn — was used, and its output was committed on its own
+(`5717c7a`) before any customization.
+
+**Plan for the seven Deliverables, in order, test-first.**
+
+1. `packages/offline-sync` Dexie schema: read caches (rooms, branch rate
+   config, catalogue), the outbox with idempotency keys, the session
+   mirror; plus the Serwist app-shell precache wiring in `apps/frontdesk`.
+2. The write contract: online-first wrapper, durable-before-report
+   enqueue, ordered oldest-first idempotent drain, poisoned-entry
+   non-blocking (a transport failure stops the drain and leaves entries
+   pending; a server *rejection* marks the entry errored and the drain
+   continues — that distinction is the contract, not an implementation
+   detail), server-computed money wins, timestamps re-sealed at replay.
+3. The online-only gate for shift open/close, void, and rate
+   configuration.
+4. The reconnection path: reachability-confirmed detection
+   (`navigator.onLine` alone is not trusted), drain-then-refresh order,
+   last-synced indicator, and the 15-second cross-desk polling interval as
+   a named constant.
+5. The Frontdesk shell: sign-in with bare-identifier→email mapping as
+   presentation ergonomics only (vault-19), role-aware navigation,
+   `src/proxy.ts` Layer 2 guards, PWA manifest + installability.
+6. The offline E2E battery, video on, against an explicitly
+   **harness-only** test double of one state-changing procedure (Phase 05
+   has no business features).
+7. The mutation gate on `packages/offline-sync`, serial `stryker` config
+   following the `db`/`api`/`schemas` precedent including the recorded
+   false-100%-on-hangs measurement.
+
+No pesos are produced by this phase — it builds no business feature — so the
+Money Recomputation Gate is not triggered, and that is stated rather than
+assumed.
+
+EVIDENCE 5717c7a /Silid/apps/frontdesk/package.json:14 - the Serwist/Turbopack install this session's research chose
+EVIDENCE 5717c7a /Silid/packages/offline-sync/package.json:23 - Dexie installed into the previously dependency-less package
+EVIDENCE 5717c7a /Silid/pnpm-workspace.yaml:6 - the resolved @swc/core build-script decision with its rationale

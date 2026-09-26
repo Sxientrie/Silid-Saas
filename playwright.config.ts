@@ -15,6 +15,17 @@ export default defineConfig({
   testDir: './tests',
   /* Run tests in files in parallel */
   fullyParallel: true,
+  /* Two workers, not Playwright's default half-the-cores. Every test records a
+     video and the Frontdesk scenarios each cold-boot a service worker in their
+     own context, while three production servers hold the apps. On an 8 GB box
+     four recording browsers exhausted memory and the suite failed with
+     infrastructure errors rather than assertions — "net::ERR_ABORTED; maybe
+     frame was detached?" on an offline reload, and "Object with guid
+     response@... was not bound in the connection" from CDP. A red run that
+     means nothing is worse than a slower green one, and running the offline
+     battery in parallel does not make the proof stronger: every scenario is a
+     separate cold boot either way. */
+  workers: process.env.CI ? 1 : 2,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */

@@ -1,5 +1,14 @@
 {
   "extends": "@silid/config/react-library.json",
+  "compilerOptions": {
+    // This package is consumed by the Frontdesk's browser bundle, so it uses
+    // Bundler resolution like packages/auth (the other frontdesk-consumed
+    // library) rather than the NodeNext default: its sources are bundled by
+    // Turbopack, not run by Node.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true
+  },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]
 }

@@ -29,7 +29,7 @@ time — the table prevents drift, it does not license stale installs.
 | Supabase CLI | 2.x (2.117.0); command syntax always discovered via `--help` at use time | npm registry; `spec/supabase.md` | 2026-09-20 |
 | pgTAP | the extension bundled with the Supabase CLI's local stack; run via `supabase db test` — no standalone version pin | `spec/supabase.md` §6; Supabase docs | 2026-09-20 |
 | Dexie | 4.x (4.4.6); dexie-react-hooks 4.4.0 | npm registry | 2026-09-20 |
-| Serwist | 9.x (9.5.12; @serwist/next for the Next.js integration) | npm registry | 2026-09-20 |
+| Serwist | 9.x (9.5.12; @serwist/turbopack for the Next.js/Turbopack integration — not @serwist/next, which only patches webpack) | npm registry | 2026-09-26 |
 | Vitest | 5.x (5.0.1) | npm registry | 2026-09-20 |
 | Testing Library | 16.x (@testing-library/react 16.x line) | npm registry | 2026-09-20 |
 | Playwright | 1.x (1.63.0); installed via Playwright's own init command | npm registry | 2026-09-20 |

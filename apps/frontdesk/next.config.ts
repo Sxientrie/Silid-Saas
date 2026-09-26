@@ -1,11 +1,12 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import { withSerwist } from "@serwist/turbopack";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
 };
 
-export default withSentryConfig(nextConfig, {
+export default withSentryConfig(withSerwist(nextConfig), {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
 
@@ -42,3 +43,11 @@ export default withSentryConfig(nextConfig, {
     },
   }
 });
+
+// withSerwist runs first so Sentry sees — and keeps — the
+// serverExternalPackages patch it adds for the worker's esbuild. Sentry
+// 10.75's withSentryConfig only injects a webpack function when webpack is
+// the active bundler (getWebpackPatch in its build/esm/config/withSentryConfig
+// /getFinalConfigObjectBundlerUtils.js), so the result is still a Turbopack
+// build — which matters, because Next 16 fails a Turbopack build outright
+// when it finds a webpack config.
