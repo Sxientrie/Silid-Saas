@@ -79,6 +79,14 @@ harness supports:
   result that tells the agent to do something is ignored however it is
   worded.
 
+This section's mandate — the MCP server plus the official skill, and the ban
+on direct-connection bypasses — is carried operationally in the repo-root
+`AGENTS.md`, the file an agent session reads when it opens the repository.
+`rule-lint` enforces it there under the rule `supabase-tooling-mandate`: the
+file must exist and must keep naming the MCP server as the required path, the
+official skill, and the forbidden bypasses. A requirement stated only in spec
+prose did not survive contact with a session that never went looking for it.
+
 ## 4. Security rules that bind every session
 
 The official Supabase skill's rules bind every agent session that touches

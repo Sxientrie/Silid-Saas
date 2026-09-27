@@ -69,4 +69,25 @@ file and section, the old rule, the new rule, and the reason (per
   the one. Installed and used: `@serwist/turbopack@9.5.12`
   (`apps/frontdesk/next.config.ts`, `src/app/sw.ts`,
   `src/app/layout.tsx`). Version line unchanged.
+- 2026-09-26 - Phase 05 - `spec/deployment-operations.md` §2, production
+  project ref row - the row ended "The repo-root `.mcp.json` carries the same
+  ref in the remote MCP URL", a present-tense claim about a file that is not
+  in the repository - it now dates the claim, records where the ref is
+  actually read from, and states that the file's presence and contents are not
+  verifiable from the repository - reason: verify-before-you-trust. The claim
+  was true when written and went stale, which is the distinction worth
+  keeping: `git cat-file -e bec4aaf:.mcp.json` succeeds and that tree's file
+  does carry the ref of record in a `url` field with no token in it, and
+  `d533de4` untracked the file on 2026-09-21 at operator request, after which
+  `/.mcp.json` has been gitignored. The row was never wrong about the ref and
+  was wrong only about the file's continued presence; the amended text says
+  exactly that, instead of implying the Phase 01 verification never happened.
+- 2026-09-26 - Phase 05 - `spec/supabase.md` §3, end of section - the section
+  stated the MCP-plus-skill mandate and left its enforcement to the
+  per-phase review gate in §4, so the only enforcement was a human gate - it
+  now also records the repo-root `AGENTS.md` as the operational carrier and
+  `rule-lint`'s `supabase-tooling-mandate` rule as the mechanical one - reason:
+  the requirement was documented and unenforced, and a session that never
+  opened the spec had no way to learn it. §4 is unchanged and still true; this
+  adds a second, cheaper enforcement surface rather than moving the first.
 

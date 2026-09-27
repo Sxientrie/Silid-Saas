@@ -4,7 +4,10 @@
 //      roadmap artifacts (Terminology rule, spec/00-master-goal.md),
 //   2. missing EVIDENCE tags on PROGRESS.md completion claims,
 //   3. acceptance inputs that are not single sentences
-//      (spec/builder-protocol.md §5).
+//      (spec/builder-protocol.md §5),
+//   4. a root AGENTS.md that has lost the Supabase MCP + official-skill
+//      mandate (spec/00-master-goal.md, spec/supabase.md §3) — a
+//      repo-level invariant, checked once per run rather than per file.
 //
 // Run as a CLI from the repo root (paths default to the real artifacts):
 //   node packages/testing/src/rule-lint.ts [files...]
@@ -21,7 +24,8 @@ export interface LintViolation {
   rule:
     | "terminology-qualified"
     | "evidence-tag-missing"
-    | "acceptance-input-sentence";
+    | "acceptance-input-sentence"
+    | "supabase-tooling-mandate";
   message: string;
 }
 
@@ -232,6 +236,73 @@ export function isSingleSentence(sentence: string): boolean {
   return boundaries.length === 1;
 }
 
+/**
+ * The three load-bearing parts of the Supabase mandate. Each is checked by
+ * pattern rather than by prose review so the check cannot be satisfied by a
+ * passing mention in an example — the phrases below are the operative ones.
+ */
+const MANDATE_REQUIREMENTS: ReadonlyArray<{
+  element: string;
+  pattern: RegExp;
+  message: string;
+}> = [
+  {
+    element: "mcp-server-path",
+    pattern: /supabase\s+mcp\s+server/i,
+    message:
+      "does not name the Supabase MCP server as the required path for all Supabase work",
+  },
+  {
+    element: "official-skill",
+    pattern: /skills\s+add\s+supabase|supabase\s+(?:agent\s+)?skill/i,
+    message: "does not require the official Supabase agent skill",
+  },
+  {
+    element: "bypass-ban",
+    pattern: /psql|service_role|connection\s+string/i,
+    message:
+      "does not forbid the direct-Postgres bypasses (psql, a credentialed connection string, a service_role key in a client)",
+  },
+];
+
+/**
+ * The Supabase MCP + official-skill mandate has to be discoverable by every
+ * agent session that opens this repo, which means it must live in a file such
+ * a session actually reads. The spec already states the rule (spec/00-master-
+ * goal.md; spec/supabase.md §3), but documented is not enforced — and the
+ * mandate was, in practice, only in spec prose that a session has to go
+ * looking for. This check is a repo-level invariant, so it runs once per
+ * invocation rather than per scanned file, and it takes a root directory so
+ * tests can point it at a fixture tree.
+ */
+export function checkSupabaseToolingMandate(
+  rootDir: string = resolve("."),
+): LintViolation[] {
+  const file = resolve(rootDir, "AGENTS.md");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    return [
+      {
+        file,
+        line: 1,
+        rule: "supabase-tooling-mandate",
+        message:
+          "missing — this is the file every agent session reads first, so the Supabase MCP + official-skill mandate has to live here (spec/00-master-goal.md; spec/supabase.md §3)",
+      },
+    ];
+  }
+  return MANDATE_REQUIREMENTS.filter(
+    (requirement) => !requirement.pattern.test(text),
+  ).map((requirement) => ({
+    file,
+    line: 1,
+    rule: "supabase-tooling-mandate" as const,
+    message: `${requirement.element}: ${requirement.message}`,
+  }));
+}
+
 function appliesTo(file: string): {
   terminology: boolean;
   evidence: boolean;
@@ -274,6 +345,9 @@ function defaultArtifactFiles(): string[] {
     }
   }
   files.push(resolve("PROGRESS.md"));
+  // The root AGENTS.md is a project artifact now, so it gets the same
+  // terminology sweep as the spec and roadmap files.
+  files.push(resolve("AGENTS.md"));
   return files;
 }
 
@@ -282,7 +356,13 @@ function main(argv: string[]): number {
     argv.length > 0
       ? argv.map((f) => resolve(f))
       : defaultArtifactFiles();
-  const violations = lintFiles(files);
+  // The mandate check is repo-level, so it runs on every invocation
+  // including an explicit-file one: naming one file to check is not a
+  // waiver of it.
+  const violations = [
+    ...lintFiles(files),
+    ...checkSupabaseToolingMandate(),
+  ];
   if (violations.length === 0) {
     console.log(`rule-lint: clean (${files.length} files scanned)`);
     return 0;
