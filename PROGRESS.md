@@ -6,7 +6,7 @@
   "last_updated": "2026-09-28",
   "current_phase": "05",
   "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "builder-complete" },
-  "last_commit": "98c878a",
+  "last_commit": "542e1e7",
   "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. The DoD's replayed-write seal is no longer a substitution: supabase/tests/13_replay_seal_test.sql ran 18/18 against the linked project via Supabase MCP, and the server-side idempotency gap it uncovered is located in the ledger. Post-phase hardening: the Supabase MCP + official-skill mandate now lives in the repo-root AGENTS.md that every session reads, enforced by rule-lint rule 'supabase-tooling-mandate' (8 tests; @silid/testing 86/86). Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
   "open_decisions": 2
 }
@@ -3662,3 +3662,79 @@ every agent session reads, `rule-lint` fails the build if that file is absent
 or has lost any of its three load-bearing parts (8 new tests, 86/86 green), and
 the one stale factual claim in the Supabase specs is amended with the
 verification that settles it.
+
+---
+
+### 2026-09-28 - Addendum: the mandate rule crashed on the condition it exists to catch
+
+Appended to the entry above; the previous entry is not edited. Its `STATUS:
+DONE` stands, but the enforcement it claimed was not actually working, and
+the gap is worth its own record because **the test suite was green the whole
+time it was broken.**
+
+**The defect.** Adding the root `AGENTS.md` to `defaultArtifactFiles()` (so it
+would get the terminology sweep) pushed the path unconditionally.
+`lintFiles()` reads every path it is handed. So deleting the root `AGENTS.md` -
+the precise condition `supabase-tooling-mandate` exists to report - produced an
+uncaught `ENOENT` out of `readFileSync`, and the process died before
+`checkSupabaseToolingMandate()` ever ran. A rule that crashes on its own
+trigger is worse than no rule, because the crash looks like an unrelated
+infrastructure failure.
+
+**Found by probing the real tree, which is the only reason it was found.** I
+moved the real `AGENTS.md` aside and ran the documented CI invocation:
+
+    $ node packages/testing/src/rule-lint.ts        # baseline
+    rule-lint: clean (32 files scanned)             exit=0
+    $ Move-Item AGENTS.md ...; node packages/testing/src/rule-lint.ts
+    node:fs:483
+        return binding.readFileUtf8(path, stringToFlags(options.flag));
+    exit=0   (expect 1)
+
+**Why 8 fixture tests missed it.** Every negative probe in the suite passed an
+*explicit* file to the CLI, which bypasses `defaultArtifactFiles()` completely.
+The fixtures verified the rule's logic and never exercised the wiring that
+feeds it. A rule and its supply chain are separate surfaces; testing only the
+first leaves the second unverified, and the second is where this lived.
+
+**The fix.** `defaultArtifactFiles()` pushes `PROGRESS.md` and `AGENTS.md` only
+when they exist, so a missing file is a reported condition rather than a fatal
+one. Absence of the root `AGENTS.md` remains asserted, by the mandate check.
+Absence of `PROGRESS.md` is deliberately *not* promoted to a new rule here -
+this is a crash fix, and inventing coverage in the same breath as fixing a bug
+is how a linter grows rules nobody asked for. The comment on the function says
+exactly that, so the next reader does not assume the gap was closed.
+
+After, on the real tree with `AGENTS.md` removed:
+
+    rule-lint: ...\AGENTS.md:1 [supabase-tooling-mandate] missing - ...
+    rule-lint: 1 violation(s) across 31 files
+    exit=1
+
+and with it restored, `clean (32 files scanned)`, exit 0.
+
+**The regression test** (`test/fixtures/mandate/default-scan-no-agents`, new)
+runs the **default** scan - no explicit files - against a tree that has
+`spec/` and `roadmap/` but no `AGENTS.md`. It asserts no `ENOENT`, the mandate
+violation is reported, exit 1, and `across 2 files`: that last assertion is the
+one that stops the fix being made by skipping the rest of the scan.
+
+**Verification:** `@silid/testing` 87/87 green across 9 files (was 86; +1),
+eslint clean, `tsc --noEmit` clean, real tree clean.
+
+**The lesson, generalised:** a green fixture suite is evidence about the
+fixtures' code path, not about the program. The supply chain into a rule -
+here, the file list that feeds it - is a separate surface with no coverage of
+its own until something exercises the real invocation. `AGENTS.md` §3 in this
+repo now says the mandate is "enforced, not advisory"; that claim was false
+for about one commit, and the way to keep it true is to run the documented
+command against the real tree with the thing it protects removed, not only
+against fixtures that were built to fail.
+
+EVIDENCE 542e1e7 /Silid/packages/testing/src/rule-lint.ts:357
+EVIDENCE 542e1e7 /Silid/packages/testing/test/supabase-mandate.test.ts:1
+EVIDENCE 542e1e7 /Silid/packages/testing/test/fixtures/mandate/default-scan-no-agents/spec/fixture.md:1
+
+STATUS: DONE - the mandate rule now reports a missing root `AGENTS.md` instead
+of crashing, proven on the real tree and pinned by a regression test that runs
+the default scan rather than an explicit-file invocation.
