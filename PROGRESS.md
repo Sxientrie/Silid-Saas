@@ -3,11 +3,11 @@
 ```json
 {
   "schema": "silid-progress/2",
-  "last_updated": "2026-09-26",
+  "last_updated": "2026-09-28",
   "current_phase": "05",
   "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "builder-complete" },
-  "last_commit": "9ec6aad",
-  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. The DoD's replayed-write seal is no longer a substitution: supabase/tests/13_replay_seal_test.sql ran 18/18 against the linked project via Supabase MCP, and the server-side idempotency gap it uncovered is located in the ledger. Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
+  "last_commit": "98c878a",
+  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. The DoD's replayed-write seal is no longer a substitution: supabase/tests/13_replay_seal_test.sql ran 18/18 against the linked project via Supabase MCP, and the server-side idempotency gap it uncovered is located in the ledger. Post-phase hardening: the Supabase MCP + official-skill mandate now lives in the repo-root AGENTS.md that every session reads, enforced by rule-lint rule 'supabase-tooling-mandate' (8 tests; @silid/testing 86/86). Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
   "open_decisions": 2
 }
 ```
@@ -3533,3 +3533,132 @@ marking it finished from this side would claim a gate I cannot see.
 STATUS: DONE - the DoD's replayed-write assertion is now executed against a
 real database and green 18/18, the acceptance record says so, and the
 server-side idempotency gap it uncovered is located in this entry.
+
+---
+
+### 2026-09-28 - The Supabase mandate is enforced, not just documented
+
+The operator asked that **any session or any instance must use the MCP server
+and the skill**. Research first, and the finding was that the rule was
+documented three times over and enforced nowhere a session would actually hit.
+
+**What was already true.** `spec/00-master-goal.md` carries the requirement in
+its tooling table, `spec/supabase.md` §3 has a section for it, and every
+roadmap phase file repeats the boilerplate. The skill is installed in this
+harness (it is in the available-skills list). So the *rule* was never in
+question.
+
+**The gap, stated precisely.** Three findings, in ascending order of
+importance:
+
+1. **There was no root `AGENTS.md`.** The only `AGENTS.md` files in the tree
+   were `apps/{landing,platform-admin,frontdesk}/AGENTS.md`, and all three are
+   `next dev`'s auto-generated "This is NOT the Next.js you know" block - not
+   one project rule between them. A session that opens the repo root had no
+   agent-facing instruction file at all, so the mandate existed only for a
+   session that went looking for it. This is the finding that decides the
+   shape of the fix.
+2. **The only enforcement named by the spec was a human gate.**
+   `spec/supabase.md` §4 says the skill's security rules are "enforced by the
+   per-phase review gate". True, and expensive: nothing fires until a person
+   looks.
+3. **`.mcp.json` was a red herring, and worth recording because I nearly
+   logged it as a discrepancy.** `spec/deployment-operations.md` §2 claimed the
+   repo-root `.mcp.json` "carries the same ref in the remote MCP URL", and the
+   file is absent. My first read was "the spec asserts a file that does not
+   exist - prompt-vs-disk discrepancy". That would have been wrong, and
+   recording it as-is would have put a false correction into an append-only
+   ledger. Verified instead of assumed: `.mcp.json` is gitignored by design
+   (`.gitignore` → "Harness MCP config (local-only; spec/supabase.md s3
+   location)"), `spec/supabase.md` §3 explicitly allows "the harness's
+   documented pattern otherwise - never an invented path", and the file *was*
+   committed once - `git cat-file -e bec4aaf:.mcp.json` succeeds, and that
+   tree's file does carry the ref of record, in a `url` field with no token in
+   it - before `d533de4` untracked it on 2026-09-21 at operator request. So the
+   claim was true when written and went stale, which is a different defect from
+   never having been true, and the amendment says so.
+
+**The fix.**
+
+- **`AGENTS.md`, new at the repo root.** The file every session reads. Carries
+  the MCP server as the required path for all Supabase work, the official
+  Supabase agent skill as a required step, the forbidden direct-Postgres
+  bypasses (`psql`, a credentialed connection string, a `service_role` key in
+  any client), harness-agnostic MCP wiring, generator-first,
+  verify-before-you-trust, the two ledgers, PROGRESS/EVIDENCE discipline, and
+  scope discipline. It states that the spec wins where they disagree, so it
+  cannot quietly become a second source of truth.
+- **`rule-lint` rule `supabase-tooling-mandate`.** A repo-level invariant, run
+  once per invocation and *also* on an explicit-file invocation, because naming
+  one file to check is not a waiver. It reports a missing root `AGENTS.md` as
+  a violation, and reports each of the three load-bearing parts separately when
+  the file exists but has lost one. The root `AGENTS.md` also joins the default
+  terminology scan.
+- **Two spec amendments**, both in `spec/CHANGELOG.md` in the same commit, as
+  the protocol requires.
+
+**On the strength of the check.** A single regex over prose is a weak thing to
+call enforcement, and the partial-mandate fixture exists to keep it honest: a
+root `AGENTS.md` that says "use the Supabase MCP server" and stops there reads
+as compliant to a human and permits every bypass and the skill omission. The
+rule requires all three parts independently, and that fixture is pinned to
+produce exactly two violations and not a third. What this does *not* do is
+verify that a session obeyed the mandate - no repository check can. It makes
+the mandate unmissable at session start and fails the build if it is deleted
+or hollowed, which is the reachable part of the request.
+
+**Verification** (real output, this session):
+
+    $ node packages/testing/src/rule-lint.ts
+    rule-lint: clean (32 files scanned)          # was 31 before AGENTS.md joined
+    $ pnpm --filter @silid/testing run lint        # eslint . --max-warnings 0
+    exit=0
+    $ pnpm --filter @silid/testing run check-types # tsc --noEmit
+    exit=0
+    $ pnpm --filter @silid/testing exec vitest run
+    Test Files  9 passed (9)
+    Tests  86 passed (86)                        # was 78; +8 new
+    exit=0
+
+The rule firing, from the negative probe (fixture root with no `AGENTS.md`,
+proving it is not a vacuous pass):
+
+    rule-lint: ...\mandate\no-file\AGENTS.md:1 [supabase-tooling-mandate]
+    missing - this is the file every agent session reads first, so the
+    Supabase MCP + official-skill mandate has to live here
+    rule-lint: 1 violation(s) across 1 files
+
+**A tool finding that is mine, not the repo's.** Searching for a place to
+record the capture-wrapper lesson, I found that
+`packages/testing/src/wrap-pgtap-capture.mjs` already existed - committed in
+`614f1b2`, documented at PROGRESS.md:1592 - and it is precisely the
+temp-table TAP-capture wrapper I hand-rolled in the `execute` calls when
+running suite 13 last week. That was a GENERATOR-FIRST miss on my part: the
+repo shipped the tool and I rebuilt it inline because I had not looked. The
+*result* was not affected (the assertions ran and passed either way; 18/18
+stands), but the process was wrong, and AGENTS.md §2 now names the wrapper and
+the coverage/mutation configs so the next session does not repeat it. The
+generalisation in that section - reuse what the repo already ships - is the
+lesson; the two examples are the ones with a known prior miss.
+
+**Not done, deliberately.** No credential or `service_role` scanner was added.
+`git grep` shows the only `service_role` occurrences in tracked source are
+three comments and one `grant` statement inside a test helper
+(`packages/testing/src/wrap-pgtap-capture.mjs`) - the tree is already clean -
+and a new scanner would be a secrets rule wearing this rule's clothes, with its
+own false-positive surface to maintain. Removing the alternative is the
+stronger enforcement, and the ban is now written down where a session reads it.
+
+EVIDENCE 98c878a /Silid/AGENTS.md:1
+EVIDENCE 98c878a /Silid/packages/testing/src/rule-lint.ts:278
+EVIDENCE 98c878a /Silid/packages/testing/src/rule-lint.ts:244
+EVIDENCE 98c878a /Silid/packages/testing/test/supabase-mandate.test.ts:1
+EVIDENCE 98c878a /Silid/spec/supabase.md:83
+EVIDENCE 98c878a /Silid/spec/deployment-operations.md:32
+EVIDENCE 98c878a /Silid/spec/CHANGELOG.md:89
+
+STATUS: DONE - the Supabase MCP + official-skill mandate now lives in the file
+every agent session reads, `rule-lint` fails the build if that file is absent
+or has lost any of its three load-bearing parts (8 new tests, 86/86 green), and
+the one stale factual claim in the Supabase specs is amended with the
+verification that settles it.
