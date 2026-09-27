@@ -12,7 +12,7 @@
 // Run as a CLI from the repo root (paths default to the real artifacts):
 //   node packages/testing/src/rule-lint.ts [files...]
 
-import { readFileSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -336,7 +336,17 @@ export function lintFiles(files: string[]): LintViolation[] {
   return violations;
 }
 
-/** The default scan set when the CLI runs with no explicit files. */
+/**
+ * The default scan set when the CLI runs with no explicit files.
+ *
+ * The two root files are pushed only when they exist. A missing file must be
+ * a *reported* condition, not a crash: `lintFiles` reads every path it is
+ * given, so an unguarded push turns "the root AGENTS.md is gone" — exactly
+ * what the mandate check exists to report — into an uncaught ENOENT before
+ * that check ever runs. Absence of the root AGENTS.md is asserted by
+ * `checkSupabaseToolingMandate`; absence of PROGRESS.md is not asserted by any
+ * rule and is deliberately not turned into one here, it simply does not crash.
+ */
 function defaultArtifactFiles(): string[] {
   const files: string[] = [];
   for (const dir of ["spec", "roadmap"]) {
@@ -344,10 +354,10 @@ function defaultArtifactFiles(): string[] {
       if (entry.endsWith(".md")) files.push(resolve(dir, entry));
     }
   }
-  files.push(resolve("PROGRESS.md"));
-  // The root AGENTS.md is a project artifact now, so it gets the same
-  // terminology sweep as the spec and roadmap files.
-  files.push(resolve("AGENTS.md"));
+  for (const root of ["PROGRESS.md", "AGENTS.md"]) {
+    const path = resolve(root);
+    if (existsSync(path)) files.push(path);
+  }
   return files;
 }
 

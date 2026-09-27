@@ -117,4 +117,23 @@ describe("checkSupabaseToolingMandate — CLI wiring", () => {
     expect(run.code).toBe(0);
     expect(run.output).toContain("clean");
   }, 120_000);
+
+  it("reports the missing mandate on the default scan instead of crashing", () => {
+    // REGRESSION, observed 2026-09-28 on the real tree: with the root
+    // AGENTS.md deleted, the default scan pushed it into the file list
+    // unconditionally, `lintFiles` read it, and the process died on an
+    // uncaught ENOENT — before checkSupabaseToolingMandate could report the
+    // very absence the rule exists to catch. The explicit-file probes above
+    // never reached this path, which is why the fixture suite passed while
+    // the real tree was broken.
+    const run = runRuleLintIn(join(FIXTURES, "default-scan-no-agents"), []);
+    expect(run.output).not.toContain("ENOENT");
+    expect(run.output).toContain("[supabase-tooling-mandate]");
+    expect(run.code).toBe(1);
+    // The other two directories still scanned: the default set is the union
+    // of spec/, roadmap/, PROGRESS.md and AGENTS.md, and losing the crash must
+    // not have cost the rest of the scan. (On the violation path main() prints
+    // "across N files", not the "clean (N files scanned)" line.)
+    expect(run.output).toContain("across 2 files");
+  });
 });
