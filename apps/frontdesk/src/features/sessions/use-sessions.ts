@@ -59,14 +59,15 @@ export function useCheckIn() {
         send: sender,
         isOnline: () => connectivity.online,
       }),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
+      // The desk hears the outcome immediately; the cache refresh follows.
       if (result.status === "confirmed") {
         setState({ status: "confirmed", message: "checked in — the room is now occupied" });
       } else {
         setState({ status: "queued", message: "queued — will replay when the branch link returns" });
       }
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      await queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
     onError: (error: Error) => {
       setState({ status: "error", message: error.message });
@@ -77,6 +78,7 @@ export function useCheckIn() {
 
   return {
     checkIn: mutation.mutateAsync,
+    isPending: mutation.isPending,
     state,
     reset: () => setState({ status: "idle" }),
   };
@@ -106,14 +108,15 @@ export function useCheckOut() {
         send: sender,
         isOnline: () => connectivity.online,
       }),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
+      // The desk hears the outcome immediately; the cache refresh follows.
       if (result.status === "confirmed") {
         setState({ status: "sealed", sealedTotal: result.total, message: "sealed by the server" });
       } else {
         setState({ status: "queued", message: "queued — will replay when the branch link returns" });
       }
-      await queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      await queryClient.invalidateQueries({ queryKey: ["sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      void queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
     onError: (error: Error) => {
       setState({ status: "error", message: error.message });

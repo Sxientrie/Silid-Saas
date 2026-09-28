@@ -54,11 +54,14 @@ export function DeskSyncBar() {
     });
     if (result.live) {
       setLastSyncedAt(result.lastSyncedAt ?? new Date().toISOString());
-      setStatus(
-        result.poisoned > 0
-          ? `live — drained ${result.drained}, ${result.poisoned} rejected (see the outbox below)`
-          : `live — drained ${result.drained}`,
-      );
+      setStatus(result.poisoned > 0 ? `live — drained ${result.drained}, ${result.poisoned} rejected (see the outbox below)` : `live — drained ${result.drained}`);
+    } else if (result.poisoned > 0) {
+      // The drain REACHED the server — the rejections happened there — so the
+      // link is back even though rejected rows keep the outbox non-empty.
+      // (Poisoned rows are excluded from future drains: they are a stuck
+      // entry for a human, not a pending write.)
+      setLastSyncedAt(new Date().toISOString());
+      setStatus(`live — drained ${result.drained}, ${result.poisoned} rejected (see the outbox below)`);
     } else {
       setStatus(`still offline — drained ${result.drained}, ${result.remaining} left queued`);
     }

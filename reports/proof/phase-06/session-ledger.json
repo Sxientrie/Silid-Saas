@@ -1,0 +1,52 @@
+{
+  "generatedAt": "2026-09-28T19:12:59.414Z",
+  "runs": [
+    {
+      "label": "2-pax short-time within grace",
+      "sessionId": "4a0e6dbf-fe9f-496b-a98e-66deaf190606",
+      "bookingType": "short_time",
+      "pax": 2,
+      "bookedEndAt": "2026-09-28T22:12:11.960726+00:00",
+      "checkedOutAt": "2026-09-28T19:12:12.771377+00:00",
+      "sealedTotal": 450,
+      "addons": []
+    },
+    {
+      "label": "3-pax short_time",
+      "sessionId": "20ab15a0-2b85-4672-aad3-7ef50d93ec47",
+      "bookingType": "short_time",
+      "pax": 3,
+      "bookedEndAt": "2026-09-28T22:12:16.118698+00:00",
+      "checkedOutAt": "2026-09-28T19:12:16.847632+00:00",
+      "sealedTotal": 650,
+      "addons": []
+    },
+    {
+      "label": "5-pax overnight",
+      "sessionId": "69332e93-5674-4120-aec5-0f92c1f2e82e",
+      "bookingType": "overnight",
+      "pax": 5,
+      "bookedEndAt": "2026-09-29T07:12:17.959508+00:00",
+      "checkedOutAt": "2026-09-28T19:12:19.068395+00:00",
+      "sealedTotal": 2000,
+      "addons": []
+    },
+    {
+      "label": "5-pax overnight 61min past grace",
+      "sessionId": "b8abeff4-490f-41d9-ad14-3304d104543d",
+      "bookingType": "overnight",
+      "pax": 5,
+      "bookedEndAt": "2026-09-28T17:46:23.381+00:00",
+      "checkedOutAt": "2026-09-28T19:12:42.607256+00:00",
+      "sealedTotal": 2300,
+      "addons": [
+        {
+          "item": "extension_charge",
+          "qty": 2,
+          "unitPrice": 150,
+          "total": 300
+        }
+      ]
+    }
+  ]
+}

@@ -15,6 +15,14 @@ export function DeskQueryProvider({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: { retry: false, refetchOnWindowFocus: false },
+          mutations: {
+            // The desk's write contract (spec/offline-sync.md §2) owns the
+            // offline path: online first, durable outbox entry on transport
+            // failure. TanStack's own network gating must never intercept a
+            // mutation — a paused mutation is a cashier staring at a form
+            // that will not submit, and the outbox would stay empty.
+            networkMode: "always",
+          },
         },
       }),
   );

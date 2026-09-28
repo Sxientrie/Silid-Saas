@@ -78,13 +78,18 @@ export function classifySendFailure(error: unknown): Error {
 /**
  * Fetch wrapper for the batch link: a gateway status becomes a
  * TransportFailure here (before tRPC reshapes it), everything else flows
- * through untouched.
+ * through untouched. A deadline is part of the desk contract: a cashier must
+ * never watch a hung request, and a link that accepts bytes but never
+ * answers is unreachable in every sense that matters — past the deadline the
+ * write falls to the outbox like any other transport failure.
  */
+const REQUEST_DEADLINE_MS = 15_000;
+
 function transportAwareFetch(fetchImpl: typeof fetch): typeof fetch {
   return async (input, init) => {
     let response: Response;
     try {
-      response = await fetchImpl(input, init);
+      response = await fetchImpl(input, { ...init, signal: AbortSignal.timeout(REQUEST_DEADLINE_MS) });
     } catch (cause) {
       throw new TransportFailure(`desk write could not reach the server: ${describeCause(cause)}`, {
         cause,

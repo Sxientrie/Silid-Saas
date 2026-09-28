@@ -30,6 +30,14 @@ export interface DeskConnectivity {
   checkNow: () => Promise<boolean>;
 }
 
+/**
+ * The probe is re-run on an interval, not only on browser events: the events
+ * are hints (§5), and a link that dies silently — a captive portal, an
+ * emulated outage, a hung uplink — never fires them. A stale "online"
+ * verdict is exactly the lie this monitor exists to prevent.
+ */
+const PROBE_INTERVAL_MS = 5_000;
+
 export function useDeskConnectivity(): DeskConnectivity {
   const [online, setOnline] = useState(false);
   const [monitor] = useState(() =>
@@ -42,7 +50,11 @@ export function useDeskConnectivity(): DeskConnectivity {
   useEffect(() => {
     monitor.start();
     void monitor.checkNow();
-    return () => monitor.stop();
+    const timer = window.setInterval(() => void monitor.checkNow(), PROBE_INTERVAL_MS);
+    return () => {
+      monitor.stop();
+      window.clearInterval(timer);
+    };
   }, [monitor]);
 
   return { online, checkNow: () => monitor.checkNow() };

@@ -29,12 +29,16 @@ export function CheckInForm({ rooms, onDone }: CheckInFormProps) {
   const [bookingType, setBookingType] = useState<(typeof BOOKING_TYPES)[number]>("short_time");
   const [pax, setPax] = useState(2);
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
-  const { checkIn, state, reset } = useCheckIn();
+  const { checkIn, isPending, state, reset } = useCheckIn();
 
   // Default to the first vacant room until the cashier overrides.
   const effectiveRoomId = roomId !== "" ? roomId : vacant[0]?.id ?? "";
 
-  const canSubmit = effectiveRoomId !== "" && pax >= 1 && paymentConfirmed && state.status !== "confirmed" && state.status !== "queued";
+  // The only submit gates are the form's own requirements and an in-flight
+  // request: a completed check-in never locks the form — the desk checks in
+  // the next guest right away, and each stay needs a fresh payment
+  // confirmation.
+  const canSubmit = effectiveRoomId !== "" && pax >= 1 && paymentConfirmed && !isPending;
 
   async function onSubmit(): Promise<void> {
     if (!canSubmit) return;
