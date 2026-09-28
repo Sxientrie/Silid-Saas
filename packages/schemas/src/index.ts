@@ -34,7 +34,8 @@ export {
   BOOKING_TYPES,
   SESSION_STATUSES,
   bookingTypeSchema,
+  checkInInputSchema,
   sessionStatusSchema,
   sessionViewSchema,
 } from "./session.schema.ts";
-export type { BookingTypeValue, SessionStatus, SessionView } from "./session.schema.ts";
+export type { BookingTypeValue, CheckInInput, SessionStatus, SessionView } from "./session.schema.ts";

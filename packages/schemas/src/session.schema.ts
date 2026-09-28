@@ -32,3 +32,21 @@ export const sessionViewSchema = z.object({
   voidReason: z.string().nullable(),
 });
 export type SessionView = z.output<typeof sessionViewSchema>;
+
+/**
+ * The check-in input (spec/domain-rules.md §2): the room is a client
+ * PREFERENCE (first-vacant default with one-tap override), the stay type and
+ * guest count are the only money-relevant inputs, and the cashier never types
+ * an amount (vault-10). Scope, time, and money are sealed server-side — the
+ * strict object is what turns a client-supplied org/branch/cashier/timestamp/
+ * peso field into a rejection at the boundary instead of a trusted value.
+ * The legal minimum guest count is 1 for both stay types; zero and negative
+ * are rejected here at validation, never arithmetic-clamped
+ * (spec/domain-rules.md §1.2, §11.5).
+ */
+export const checkInInputSchema = z.strictObject({
+  roomId: z.uuid(),
+  bookingType: bookingTypeSchema,
+  pax: z.number().int().min(1),
+});
+export type CheckInInput = z.output<typeof checkInInputSchema>;

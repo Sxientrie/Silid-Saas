@@ -229,3 +229,111 @@ describe("createSilidDataClient — as-caller query wiring", () => {
     expect(await createSilidDataClient(client).getBranch(BRANCH)).toBeNull();
   });
 });
+
+describe("createSilidDataClient — session transition wiring (roadmap 06 D1)", () => {
+  const closedRow = {
+    ...sessionRow,
+    status: "closed",
+    total: "450",
+    checked_out_at: "2026-09-25T12:00:00Z",
+  };
+
+  it("checkInSession inserts the four server-owned columns and maps the sealed row", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const client = {
+      from(table: string) {
+        seen.push({ table });
+        return {
+          insert: (values: Record<string, unknown>) => {
+            seen.push({ insert: values });
+            return {
+              select: () => ({
+                single: async () => ({ data: sessionRow, error: null }),
+              }),
+            };
+          },
+        };
+      },
+    } as unknown as SupabaseClient;
+    const session = await createSilidDataClient(client).checkInSession(STAFF, {
+      roomId: ROOM,
+      bookingType: "short_time",
+      pax: 2,
+    });
+    expect(seen[0]).toMatchObject({ table: "sessions" });
+    // The caller id is the verified token's sub; the client supplies nothing else.
+    expect(seen[1]).toMatchObject({
+      insert: { room_id: ROOM, booking_type: "short_time", pax: 2, cashier_id: STAFF },
+    });
+    expect(session.status).toBe("active");
+  });
+
+  it("closeSession invokes the sealing RPC with the session id alone and re-reads the sealed row", async () => {
+    const seen: Array<Record<string, unknown>> = [];
+    const client = {
+      async rpc(fn: string, args: Record<string, unknown>) {
+        seen.push({ rpc: fn, args });
+        return { data: 450, error: null };
+      },
+      from(table: string) {
+        seen.push({ table });
+        return {
+          select: () => ({
+            eq: (_col: string, v: string) => {
+              seen.push({ eq: v });
+              return { single: async () => ({ data: closedRow, error: null }) };
+            },
+          }),
+        };
+      },
+    } as unknown as SupabaseClient;
+    const result = await createSilidDataClient(client).closeSession(SESSION);
+    // The RPC carries the session id and NOTHING else — no client instant
+    // (Invariant 2a: the checkout instant is the database clock).
+    expect(seen[0]).toMatchObject({ rpc: "close_session", args: { row_session_id: SESSION } });
+    expect(seen[1]).toMatchObject({ table: "sessions" });
+    expect(result.total).toBe("450");
+    expect(result.session.status).toBe("closed");
+    expect(result.session.checkedOutAt).toBe("2026-09-25T12:00:00Z");
+  });
+
+  it("closeSession surfaces the RPC's refusal (double close, wrong scope) verbatim", async () => {
+    const client = {
+      async rpc() {
+        return { data: null, error: { message: "session is not active" } };
+      },
+    } as unknown as SupabaseClient;
+    await expect(createSilidDataClient(client).closeSession(SESSION)).rejects.toThrow(
+      "session is not active",
+    );
+  });
+
+  it("getSession resolves null for a row outside the caller's scope", async () => {
+    const client = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    expect(await createSilidDataClient(client).getSession(SESSION)).toBeNull();
+  });
+
+  it("checkInSession surfaces the database's rejection (double booking, no open shift) verbatim", async () => {
+    const client = {
+      from: () => ({
+        insert: () => ({
+          select: () => ({
+            single: async () => ({
+              data: null,
+              error: { message: "duplicate key value violates unique constraint \"one_active_session_per_room\"" },
+            }),
+          }),
+        }),
+      }),
+    } as unknown as SupabaseClient;
+    await expect(
+      createSilidDataClient(client).checkInSession(STAFF, { roomId: ROOM, bookingType: "short_time", pax: 2 }),
+    ).rejects.toThrow("one_active_session_per_room");
+  });
+});

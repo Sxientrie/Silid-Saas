@@ -55,15 +55,28 @@ function staffView(): StaffView {
 }
 
 /** In-memory port that records every branch filter it is handed. */
-function memoryDataClient(): SilidDataClient & { roomFilters: string[][]; sessionFilters: string[][]; rateCalls: unknown[] } {
+function memoryDataClient(): SilidDataClient & {
+  roomFilters: string[][];
+  sessionFilters: string[][];
+  rateCalls: unknown[];
+  checkInCalls: Array<{ cashierId: string; input: { roomId: string; bookingType: string; pax: number } }>;
+  closeCalls: string[];
+  getSessionCalls: string[];
+} {
   const branchRows = [branchRow(BRANCH_A1, ORG_A), branchRow(BRANCH_A2, ORG_A), branchRow(BRANCH_B1, ORG_B)];
   const roomFilters: string[][] = [];
   const sessionFilters: string[][] = [];
   const rateCalls: unknown[] = [];
+  const checkInCalls: Array<{ cashierId: string; input: { roomId: string; bookingType: string; pax: number } }> = [];
+  const closeCalls: string[] = [];
+  const getSessionCalls: string[] = [];
   const client = {
     roomFilters,
     sessionFilters,
     rateCalls,
+    checkInCalls,
+    closeCalls,
+    getSessionCalls,
     async listBranches() {
       return branchRows;
     },
@@ -80,6 +93,22 @@ function memoryDataClient(): SilidDataClient & { roomFilters: string[][]; sessio
     async listSessions(branchIds: string[]) {
       sessionFilters.push([...branchIds]);
       return branchIds.map(sessionView);
+    },
+    async checkInSession(
+      cashierId: string,
+      input: { roomId: string; bookingType: "short_time" | "overnight"; pax: number },
+    ) {
+      checkInCalls.push({ cashierId, input });
+      return sessionView(BRANCH_A1);
+    },
+    async closeSession(sessionId: string) {
+      closeCalls.push(sessionId);
+      const closed = { ...sessionView(BRANCH_A1), status: "closed" as const, total: "450", checkedOutAt: "2026-09-25T12:00:00Z" };
+      return { total: "450", session: closed };
+    },
+    async getSession(sessionId: string) {
+      getSessionCalls.push(sessionId);
+      return sessionId === SESSION_A1 ? sessionView(BRANCH_A1) : null;
     },
     async updateRateConfig(branchId: string, canteen: unknown, extension: unknown) {
       rateCalls.push([branchId, canteen, extension]);
@@ -285,5 +314,105 @@ describe("read procedures (branches, staff, sessions)", () => {
     const caller = orgAdminCaller();
     const staff = await caller.staff.listStaff();
     expect(staff[0]?.orgId).toBe(ORG_A);
+  });
+});
+
+describe("session procedures (check-in / check-out contracts, roadmap 06 D1)", () => {
+  it("createSession hands the data layer only the three client inputs plus the VERIFIED caller id", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    const session = await caller.sessions.createSession({
+      roomId: ROOM_A1,
+      bookingType: "short_time",
+      pax: 2,
+    });
+    expect(data.checkInCalls).toEqual([
+      {
+        cashierId: STAFF_ID, // from the verified token's sub, never from the request
+        input: { roomId: ROOM_A1, bookingType: "short_time", pax: 2 },
+      },
+    ]);
+    expect(session.id).toBe(SESSION_A1);
+    expect(session.status).toBe("active");
+  });
+
+  it("createSession refuses any money, scope, or timestamp field the client invents", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    // Strict input: a tampered client's peso figure is a bad request, not a
+    // trusted value (Invariant 2c — server-computed money).
+    await expect(
+      caller.sessions.createSession({
+        roomId: ROOM_A1,
+        bookingType: "short_time",
+        pax: 2,
+        total: 999,
+      } as unknown as { roomId: string; bookingType: "short_time"; pax: number }),
+    ).rejects.toThrow(TRPCError);
+    await expect(
+      caller.sessions.createSession({
+        roomId: ROOM_A1,
+        bookingType: "short_time",
+        pax: 2,
+        branchId: BRANCH_B1,
+        orgId: ORG_B,
+        checkedInAt: "1999-01-01T00:00:00Z",
+      } as unknown as { roomId: string; bookingType: "short_time"; pax: number }),
+    ).rejects.toThrow(TRPCError);
+    expect(data.checkInCalls).toEqual([]);
+  });
+
+  it("createSession validates the guest count at the service layer, never by clamping", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    for (const pax of [0, -1, 2.5]) {
+      await expect(
+        caller.sessions.createSession({ roomId: ROOM_A1, bookingType: "short_time", pax }),
+      ).rejects.toThrow(TRPCError);
+    }
+    expect(data.checkInCalls).toEqual([]);
+  });
+
+  it("createSession is a cashier surface: an org admin or the platform tier is refused before the data layer", async () => {
+    const data = memoryDataClient();
+    await expect(
+      orgAdminCaller(data).sessions.createSession({ roomId: ROOM_A1, bookingType: "short_time", pax: 2 }),
+    ).rejects.toThrow(TRPCError);
+    await expect(
+      platformCaller(data).sessions.createSession({ roomId: ROOM_A1, bookingType: "short_time", pax: 2 }),
+    ).rejects.toThrow(TRPCError);
+    expect(data.checkInCalls).toEqual([]);
+  });
+
+  it("closeSession invokes the sealing transaction with the session id alone", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    const result = await caller.sessions.closeSession({ sessionId: SESSION_A1 });
+    expect(data.closeCalls).toEqual([SESSION_A1]);
+    expect(result.total).toBe("450");
+    expect(result.session.status).toBe("closed");
+  });
+
+  it("closeSession refuses invented fields — no client instant, no client figure", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    await expect(
+      caller.sessions.closeSession({
+        sessionId: SESSION_A1,
+        requestedCheckoutAt: "1999-01-01T00:00:00Z",
+        total: 1,
+      } as unknown as { sessionId: string }),
+    ).rejects.toThrow(TRPCError);
+    expect(data.closeCalls).toEqual([]);
+  });
+
+  it("getSession is a claim-scoped read; the data layer decides invisibility", async () => {
+    const data = memoryDataClient();
+    const caller = cashierCaller(data);
+    const session = await caller.sessions.getSession({ sessionId: SESSION_A1 });
+    expect(data.getSessionCalls).toEqual([SESSION_A1]);
+    expect(session?.id).toBe(SESSION_A1);
+    const invisible = await caller.sessions.getSession({ sessionId: "55000000-0000-4000-8000-00000000ffff" });
+    expect(invisible).toBeNull();
   });
 });

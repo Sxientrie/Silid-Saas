@@ -34,6 +34,26 @@ export interface SilidDataClient {
   listRooms(branchIds: string[]): Promise<RoomView[]>;
   listStaff(): Promise<StaffView[]>;
   listSessions(branchIds: string[]): Promise<SessionView[]>;
+  /**
+   * Check-in: an as-caller INSERT into sessions. The database's seal trigger
+   * resolves org/branch from the claims, seals the instants, zeroes the money
+   * columns, requires the room vacant in the caller's branch, and flips the
+   * room to occupied in the same write (spec/domain-rules.md §2) — so this
+   * method carries the verified cashier id (from the token's sub) and the
+   * three client inputs, and nothing else.
+   */
+  checkInSession(
+    cashierId: string,
+    input: { roomId: string; bookingType: "short_time" | "overnight"; pax: number },
+  ): Promise<SessionView>;
+  /**
+   * Check-out: the `close_session` sealing RPC, invoked with the session id
+   * ALONE — the checkout instant is the database clock (the RPC's optional
+   * timestamp parameter is a Phase 02 test seam and is never exposed here;
+   * Invariant 2a). The sealed session is re-read claim-scoped for the view.
+   */
+  closeSession(sessionId: string): Promise<{ total: string; session: SessionView }>;
+  getSession(sessionId: string): Promise<SessionView | null>;
   updateRateConfig(
     branchId: string,
     canteenOverrides: Record<string, string> | undefined,
@@ -162,6 +182,44 @@ export function createSilidDataClient(client: SupabaseClient): SilidDataClient {
         throw new Error(error.message);
       }
       return ((data ?? []) as Row[]).map(toSessionView);
+    },
+    async checkInSession(cashierId, input) {
+      const { data, error } = await client
+        .from("sessions")
+        .insert({
+          room_id: input.roomId,
+          booking_type: input.bookingType,
+          pax: input.pax,
+          cashier_id: cashierId,
+        })
+        .select("*")
+        .single();
+      if (error !== null) {
+        throw new Error(error.message);
+      }
+      return toSessionView(data as Row);
+    },
+    async closeSession(sessionId) {
+      // The sealing transaction: session id only, no client instant. The RPC
+      // returns the sealed total; the sealed row is re-read claim-scoped.
+      const { data: total, error: rpcError } = await client.rpc("close_session", {
+        row_session_id: sessionId,
+      });
+      if (rpcError !== null) {
+        throw new Error(rpcError.message);
+      }
+      const { data, error } = await client.from("sessions").select("*").eq("id", sessionId).single();
+      if (error !== null) {
+        throw new Error(error.message);
+      }
+      return { total: String(total), session: toSessionView(data as Row) };
+    },
+    async getSession(sessionId) {
+      const { data, error } = await client.from("sessions").select("*").eq("id", sessionId).maybeSingle();
+      if (error !== null) {
+        throw new Error(error.message);
+      }
+      return data === null ? null : toSessionView(data);
     },
     async updateRateConfig(branchId, canteenOverrides, extensionOverrides) {
       const { data, error } = await client.rpc("update_rate_config", {
