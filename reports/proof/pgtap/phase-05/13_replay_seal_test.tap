@@ -1,0 +1,18 @@
+ok 1 - no state-changing public function accepts a timestamp parameter, so a desk has nowhere to supply one
+ok 2 - authenticated holds no UPDATE or DELETE on any fact table, so a sealed instant cannot be amended
+ok 3 - the only client-insertable tables without a BEFORE INSERT seal are the four catalog tables
+ok 4 - every seal trigger stamps clock_timestamp(), so instants are per-statement and orderable
+ok 5 - sessions.booked_end_at carries no column default, so the trigger must derive it rather than the client supply it
+ok 6 - a shift open replayed with a decade-old opened_at is stamped with the server clock
+ok 7 - a shift open replayed with another user's opened_by is attributed to the authenticated caller
+ok 8 - a check-in replayed with a future-dated checked_in_at is stamped with the server clock
+ok 9 - the forged future instant is discarded, not merely bounded
+ok 10 - the overstay deadline is derived from the server instant, so a desk cannot move it
+ok 11 - a replayed canteen sale carrying a forged sold_at is stamped with the server clock
+ok 12 - a replayed guest add-on carrying a forged added_at is stamped with the server clock
+ok 13 - a cashier can append an audit row but cannot read the ledger back
+ok 14 - a replayed audit row carrying a forged ts is stamped with the server clock
+ok 15 - a replayed audit row carrying another user's actor_id is attributed to the authenticated caller
+ok 16 - a client cannot amend a server-stamped check-in instant afterwards
+ok 17 - the server-stamped instant is still the stored instant after the amendment was refused
+ok 18 - the refused amendment created nothing
