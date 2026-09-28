@@ -3,11 +3,11 @@
 ```json
 {
   "schema": "silid-progress/2",
-  "last_updated": "2026-09-28",
-  "current_phase": "05",
-  "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "builder-complete" },
-  "last_commit": "542e1e7",
-  "resume_point": "Phase 05 builder-side complete: Deliverables 1-7 closed (packages/offline-sync 63 tests at 100% coverage; the Frontdesk PWA shell with the proxy guard and Serwist worker; the 12-scenario offline E2E battery green 20/20 twice with 18 clips; the mutation gate at 99.40% - 166 mutants, 165 killed, 1 survivor proven equivalent); acceptance report ALL GREEN 8/8. The DoD's replayed-write seal is no longer a substitution: supabase/tests/13_replay_seal_test.sql ran 18/18 against the linked project via Supabase MCP, and the server-side idempotency gap it uncovered is located in the ledger. Post-phase hardening: the Supabase MCP + official-skill mandate now lives in the repo-root AGENTS.md that every session reads, enforced by rule-lint rule 'supabase-tooling-mandate' (8 tests; @silid/testing 86/86). Open and not the builder's to close: the runner's Phase 05 review gate, and Phase 04's two dead EVIDENCE tags parked with it. Begin the next phase from HEAD, not from this line. Next: Phase 06 (06-sessions-rooms.md) - check-in/check-out with sealed totals, the room status machine, the overstay ladder, the double-booking guard.",
+  "last_updated": "2026-09-29",
+  "current_phase": "06",
+  "phase_status": { "01": "done", "02": "done", "03": "done", "04": "builder-complete", "05": "builder-complete", "06": "in-progress" },
+  "last_commit": "d219011",
+  "resume_point": "Phase 06 IN_PROGRESS, and its brief premise is FALSIFIED - do not rebuild Deliverables 1-6, they are already committed and verified. D1 562d2f2, D4 fe1ee43, D2/D3 65f087c, D5/D6 live proofs c730f90, D5/D6 E2E money proofs a043126, CONFLICT mapping 11b8e46, D7 money gate d219011. Verified this session: money gate --reference --session-ledger --service-config returns ZERO DRIFT and SERVICE VERDICT ZERO DRIFT exit 0 (450/650/2000/2300); @silid/testing 97/97; @silid/frontdesk 79/79; pnpm turbo run test --concurrency=2 13/13 tasks; rule-lint clean (32 files). Host note: bare 'pnpm test' fails at default parallelism in @silid/landing + @silid/platform-admin with a vitest forks-pool worker timeout; both pass standalone and the suite is green at --concurrency=2. That is worker contention on this Windows host, NOT a code defect - do not 'fix' those two apps. BLOCKER, operator work, not the builder's: the gitignored .env.local was destroyed earlier on 2026-09-29 taking SUPABASE_SERVICE_ROLE_KEY and SILID_OPERATOR_PASSWORD with it, so 57 live proofs SKIP rather than run - @silid/api 17 skipped (contract.live 7 + sessions.live 10, which holds the same-instant race, the 450/650/2000 sealed goldens, the forced 2300 overstay and the tamper refusal) and @silid/auth 40 skipped (the whole attack battery). Recovery: roll a new secret key in the Supabase dashboard, add it plus an operator password to the root .env.local, then 'node --env-file=.env.local packages/auth/src/seed-platform-admin.ts'; the operator@silid.local identity still exists in auth.users (platform_admin, email_confirmed, 0 sessions). Also open: no reports/phase-06-acceptance.md exists; the six Phase-06 proof clips (four frontdesk-sessions-money-* and two-cashiers-one-room-desk-a/b.webm) are deleted in the working tree with no on-disk replacement because playwright outputDir reports/proof/e2e was cleared by the 03:14 re-run - regenerating them needs the credentials; D-8's kill rate is unrecorded (the utils Stryker report covers src/overstay.ts but no reporter embeds a computed score and no clear-text log is committed). tripwire-registry.json and reports/proof/mutation/{api,db} carry runner modifications predating this session - not read, left as found. Next: restore credentials, re-run the live suites and the sessions-money specs, write reports/phase-06-acceptance.md, record the D-8 number, then the runner review gate.",
   "open_decisions": 2
 }
 ```
@@ -3849,3 +3849,223 @@ discrepancy is logged above and the ledger was followed. The runner's
 per-phase review gate still owns the formal close (and the two dead Phase 04
 EVIDENCE tags remain parked with it); the ledger header remains the runner's
 to maintain. Next per the resume_point: Phase 06 (06-sessions-rooms.md).
+
+---
+
+### 2026-09-29 — Phase 06 session start (builder): research logged
+
+Read in full, from disk: every file in `/Silid/spec/*.md` (17 files),
+`/Silid/roadmap/00-index.md`, the Definition-of-done sections of roadmap
+01–04, `roadmap/05-frontdesk-shell-offline.md` in full,
+`roadmap/06-sessions-rooms.md` in full, and `/Silid/PROGRESS.md` (ledger +
+recent entries). `/Silid/tripwire-registry.json` was not read and is not on
+any reading list.
+
+**Brief verified against disk before obeying it.** The brief's
+"WHAT ALREADY EXISTS" claims were each checked: Phase 02's schema,
+checkout sealing RPC (`public.close_session`,
+migration `20260924153000_checkout_void.sql`) and status-only pg_cron
+escalation (`20260924160000_escalation.sql`) exist; Phase 04's scoped API
+(`packages/api` six routers), rate service (`rates.router.ts` +
+`@silid/schemas` §3.3 editor block), audit package, and money reference
+fixture (`packages/db/src/money-reference.ts`) exist; Phase 05's Frontdesk
+shell (PWA, proxy guard, sign-in) and offline contract
+(`packages/offline-sync`) with the E2E battery exist. No discrepancy found.
+Two nuances recorded: (1) `sessions.router.ts`/`rooms.router.ts` are
+read-only by design — this phase adds the create/close mutations; (2) the
+Frontdesk has no tRPC HTTP endpoint yet — features consume data via server
+components, so this phase wires `/api/trpc` (fetchRequestHandler) plus the
+`@trpc/client` link, which is the designed "remote via tRPC" service path
+(`spec/monorepo-structure.md` §3).
+
+**Research sources (verify-before-you-trust):**
+- `supabase/migrations/20260924145000_server_seal_and_guards.sql` — check-in
+  is an as-caller INSERT into `sessions` sealed by the
+  `app.seal_session_insert` trigger (claim scope, clock_timestamp,
+  booked_end derivation, room vacant check, branch lock, open-shift
+  requirement, room flip). No check-in RPC exists or is needed.
+- `supabase/migrations/20260924153000_checkout_void.sql` — `close_session`
+  RPC seals money (base/surcharge via `app.stay_amounts`, extension deficit
+  via `app.extension_blocks_due` minus posted quantity), writes the audit
+  row, releases the room. It carries an optional `requested_checkout_at`
+  parameter (Phase 02 test determinism); the API surface this phase adds
+  NEVER passes it — server clock only (Invariant 2a).
+- `packages/api/test/contract.live.test.ts` — the live-test pattern
+  (provisioned identities via the service key in gitignored `.env.local`,
+  `createTrpcContext` verification, residue discipline) this phase reuses.
+- `pnpm view @trpc/client version` → 11.19.0 (2026-09-29): matches the
+  spec/tech-stack.md pinned 11.x line; `@trpc/server` is already 11.19.0 in
+  `packages/api`. `@trpc/client` will be added to the Frontdesk with
+  `pnpm add @silid/frontdesk@... pnpm add @trpc/client@11.19.0`.
+- Recorded host facts reused, not re-researched: no Docker daemon on this
+  host, so the local stack is substituted by the linked project
+  (`tymalzlhygkysdychbpv`) for live proofs, per the recorded Phases 02–05
+  decision; pgTAP runs through
+  `packages/testing/src/wrap-pgtap-capture.mjs` (AGENTS.md §2).
+- DECISIONS-NEEDED.md: D-001 (stray probe table) and D-002 (leaked-password
+  protection) remain parked; neither touches this phase's work. No new
+  decisions parked.
+
+**Plan (per Deliverables item, generator check included):**
+1. D1 session procedures: extend `@silid/schemas` (checkIn input, strict —
+   no money fields), extend the `SilidDataClient` port + as-caller adapter
+   (`createSession` INSERT, `closeSession` RPC without the timestamp,
+   `getSession`), extend `sessions.router.ts` with verbNoun procedures
+   `createSession` / `closeSession` / `getSession` (naming per
+   `spec/monorepo-structure.md` §3's own examples). Hand-written domain
+   code (routers/schemas/tests) — no generator exists for this layer.
+2. D2/D3 features: `apps/frontdesk/src/features/{sessions,rooms}` slices +
+   `/api/trpc` route handler + TanStack Query for server cache with the
+   15s cross-desk poll (`CROSS_DESK_POLL_INTERVAL_MS`). Dependencies
+   (`@trpc/client`, `@tanstack/react-query`) via `pnpm add`, never
+   hand-edited package.json. Zustand is deliberately NOT added — no client
+   state this phase needs it; logged here so the omission is a decision.
+3. D4 ladder display: pure display math in `packages/utils`
+   (its documented purpose, `spec/monorepo-structure.md` §1: "shared pure
+   utilities (money display, time formatting)") — ladder phase, grace
+   countdown, started-block accruing figure, garbage fallback per
+   `spec/domain-rules.md` §3.4 — plus the shared peso formatter. vault-05/06
+   goldens as unit tests. Stryker config for the package via Stryker's init
+   then minimal edits (threshold 80 break, matching the recorded Phase 02
+   command-runner finding).
+4. D5 concurrency proofs: API-level same-instant race (two provisioned
+   cashiers, one room, `Promise.all`) + concurrent checkout-vs-check-in;
+   E2E clips for the desk surfacing a rejection.
+5. D6 E2E money proofs: Playwright specs against the linked project, video
+   on, peso figures imported from `@silid/db`'s money reference fixture
+   (MONEY REFERENCE RULE — no test re-types a peso). Overstay forced at the
+   fixture layer (booked_end pulled back by the service-role test client),
+   checkout sealed by the real server clock through the desk UI.
+6. D7 money gate: extend `packages/testing/src/money-recompute.ts` with a
+   `--session-ledger <file>` mode recomputing the E2E runs' sealed totals
+   from the exported ledger rows (different grouping/order), report to
+   `/Silid/reports/proof/phase-06/`.
+7. D8 mutation gate: Stryker on `packages/api` (now carrying the session
+   procedures) and `packages/utils` (display math); reports to
+   `/Silid/reports/proof/mutation/`.
+
+Working-tree note: `tripwire-registry.json`,
+`reports/proof/mutation/db/mutation.{html,json}`, and the untracked
+`reports/proof/phase-04-money-gate-runner-rerun.md` carry runner
+modifications from before this session; they are not mine, were not read,
+and are left exactly as found.
+
+STATUS: IN_PROGRESS — research and plan logged; beginning Deliverable 1.
+
+### 2026-09-29 — Phase 06 brief premise falsified; D7 committed with teeth; 57 live proofs blocked on a lost operator credential
+
+**The phase prompt's premise is false, and the brief's own rule says to flag it
+rather than obey it.** The prompt states "You build: Deliverables 1–8 of this
+phase" and that only Phases 01–05 exist. Disk says Deliverables 1–6 are already
+built and committed. Verified against git, not inferred:
+
+- `562d2f2` D1 session procedures (check-in insert, `close_session` sealing
+  RPC, claim-scoped reads) EVIDENCE 562d2f2 /Silid/packages/api/src/routers/sessions.router.ts:30
+- `fe1ee43` D4 overstay ladder display math + shared peso formatter
+  EVIDENCE fe1ee43 /Silid/packages/utils/src/overstay.ts:63
+- `65f087c` D2/D3 `features/sessions` + `features/rooms`, tRPC wiring, room
+  grid EVIDENCE 65f087c /Silid/apps/frontdesk/src/features/rooms/RoomGrid.tsx:30
+- `c730f90` D5/D6 live API session proofs EVIDENCE c730f90 /Silid/packages/api/test/sessions.live.test.ts:239
+- `a043126` D5/D6 E2E money proofs EVIDENCE a043126 /Silid/tests/frontdesk/sessions-money.spec.ts:280
+- `11b8e46` refusals mapped to CONFLICT EVIDENCE 11b8e46 /Silid/packages/api/src/routers/sessions.router.ts:30
+
+This is the second consecutive stale phase brief (cf. `d395b9f`, Phase 05).
+The ledger's own resume_point was a full phase behind: the header JSON still
+read `current_phase: "05"` with resume_point "Next: Phase 06", while the body's
+last entry stopped at "beginning Deliverable 1". A session resuming from
+resume_point would have rebuilt D1–D6 from scratch.
+
+**D-7 closed and committed as `d219011`.** Before this commit the
+`--session-ledger` gate existed ONLY in the working tree — `git show
+HEAD:packages/testing/src/money-recompute.ts` returned no `session-ledger`
+token, so the gate the ledger described could not be re-run from any commit.
+Committed: the mode itself EVIDENCE d219011 /Silid/packages/testing/src/money-recompute.ts:292,
+its tests EVIDENCE d219011 /Silid/packages/testing/test/money-recompute.test.ts:134,
+and `reports/proof/phase-06/money-gate.md`. `reports/proof/phase-06/session-ledger.json`
+was already tracked at HEAD, so the gate is reproducible from a fresh clone.
+
+The gate had no test at all — `money-recompute.test.ts` imported neither
+`recomputeSealedSession` nor `recomputeSessionLedger`. Ten tests now, written to
+prove it can FAIL rather than merely agree: lost money (clock says 2 blocks,
+1 posted), a double-charge (2 posted, 1 due), an add-on row whose total is not
+qty × unit price, a one-peso drift, and a NaN-proof unparseable timestamp. The
+CLI docstring listed only `--reference`/`--ledger` and now documents all four
+sections. An `Infinity` `blockCharge` guard was added beside the existing `NaN`
+guard.
+
+**Verification actually run this session (real output, not recalled):**
+
+- `node packages/testing/src/money-recompute.ts --reference --session-ledger
+  reports/proof/phase-06/session-ledger.json --service-config` →
+  **ZERO DRIFT** and **SERVICE VERDICT: ZERO DRIFT**, exit 0. The four sealed
+  rows recompute as ₱450 / ₱650 / ₱2,000 / ₱2,300 independently ₱450 / ₱650 /
+  ₱2,000 / ₱2,300.
+- `pnpm --filter @silid/testing test` → **97/97** (was 87).
+- `pnpm --filter @silid/frontdesk test` → **79/79**, 11 files. Includes the
+  room-status grep proof EVIDENCE 65f087c /Silid/apps/frontdesk/test/no-client-room-writes.test.ts:44
+  and the vault-05 corruption fallback EVIDENCE fe1ee43 /Silid/packages/utils/test/overstay.test.ts:37.
+- `pnpm turbo run test --concurrency=2` → **13/13 tasks successful**.
+- `pnpm rule-lint` → `clean (32 files scanned)`.
+
+**Host finding: bare `pnpm test` fails, and it is NOT a code defect.** At default
+parallelism `@silid/landing` and `@silid/platform-admin` both die with
+`[vitest-pool]: Failed to start forks worker` / "Timeout waiting for worker to
+respond" after 60 s, reporting "no tests" — while 9 of 13 tasks pass. Each of
+those two packages passes standalone (`@silid/landing` alone: 1 test, 3.17 s),
+and the whole suite is green at `--concurrency=2`. This is fork-pool worker
+contention on this Windows host under vitest 5.0.1. Recorded so the next
+session does not read a green build as broken — and does not "fix" two apps
+that are fine.
+
+**BLOCKED, and it is not the builder's to close: 57 live proofs skip.** The
+gitignored `.env.local` was destroyed earlier in this session, taking
+`SUPABASE_SERVICE_ROLE_KEY` and `SILID_OPERATOR_PASSWORD` with it. The suites
+gate on those credentials and skip cleanly rather than failing, so the
+build reads green while the phase's core proofs never execute:
+
+- `@silid/api` 71 passed / **17 skipped** — `contract.live.test.ts` (7) and
+  `sessions.live.test.ts` (10). The latter is where the two-cashiers-one-room
+  same-instant test, the ₱450/₱650/₱2,000 sealed goldens, the forced 61-minute
+  ₱2,300 overstay, and the tamper refusal live.
+- `@silid/auth` 14 passed / **40 skipped** — the whole attack battery plus
+  `integration.provisioning.test.ts`, each logging
+  `[attack battery] SKIPPING ... missing credentials SUPABASE_SERVICE_ROLE_KEY`.
+
+So the DoD limbs for the same-instant race, the sealed live totals, the offline
+replay clip, and the tamper test are **written but not currently proven by a
+passing run**. They were green at `a043126`; they are skipped now. Recovery is
+operator work: roll a new secret key in the dashboard, add it and an operator
+password to the root `.env.local`, then
+`node --env-file=.env.local packages/auth/src/seed-platform-admin.ts` (the
+operator identity `operator@silid.local` still exists — confirmed in
+`auth.users`, role `platform_admin`, `email_confirmed`, 0 sessions).
+
+**Two further gaps that are NOT credential-blocked and remain open:**
+
+1. **No Phase-06 acceptance report.** `reports/phase-0{1..5}-acceptance.md`
+   exist; there is no `phase-06` counterpart, so the DoD's "every Deliverables
+   item closed with an EVIDENCE tag" is unmet by construction.
+2. **The six Phase-06 proof clips are deleted in the working tree with no
+   on-disk replacement** — four `frontdesk-sessions-money-*` videos and
+   `two-cashiers-one-room-desk-{a,b}.webm`. `playwright.config.ts` sets
+   `outputDir: reports/proof/e2e`, which the 03:14 re-run cleared; that run
+   left 15 fresh dirs, all Phase-05 `offline-contract-*` and `role-nav-*`. This
+   is the same artifact the DoD's "recorded clip" limbs cite. Deliberately left
+   uncommitted and unparked: the fix is to re-run the sessions-money specs
+   once credentials are restored, which is a decision about which proof trail
+   to keep, not a code change. Regenerating them is credential-blocked.
+3. **D-8's kill rate is still unrecorded.** `reports/proof/mutation/utils/`
+   exists and covers `src/overstay.ts`, but neither Stryker reporter embeds a
+   computed score and no clear-text run log is committed, so the ≥80% DoD gate
+   has no number behind it. The only percentage on disk is the stale Phase-04
+   figure 89.55% quoted in `packages/api/stryker.conf.json:13`.
+
+Working-tree discipline: `tripwire-registry.json` and the four
+`reports/proof/mutation/{api,db}/mutation.*` files carry runner modifications
+predating this session. They were not read and are left exactly as found, per
+the same note the Phase 06 session-start entry recorded.
+
+STATUS: IN_PROGRESS — D1–D6 committed and verified for their offline surface;
+D7 committed and re-proven ZERO DRIFT this session. NOT closable: 57 live proofs
+skip on a lost operator credential, no acceptance report, six proof clips
+deleted with no replacement, D-8 kill rate unrecorded.
