@@ -13,6 +13,14 @@ export const SESSION_STATUSES = ["active", "closed", "voided"] as const;
 export const sessionStatusSchema = z.enum(SESSION_STATUSES);
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
+/**
+ * Money leaves the database as PostgREST numeric — JSON number or string
+ * depending on magnitude — and the view normalizes to the string form the
+ * display layer renders. (The same tolerance pattern the stored rate-card
+ * scalars use; the authoritative figure is the server's either way.)
+ */
+const numericText = z.union([z.string(), z.number()]).transform((value) => String(value));
+
 export const sessionViewSchema = z.object({
   id: z.uuid(),
   orgId: z.uuid(),
@@ -22,9 +30,9 @@ export const sessionViewSchema = z.object({
   bookingType: bookingTypeSchema,
   pax: z.number().int(),
   /** Sealed at checkout; zeros before sealing are defaults, not figures. */
-  baseRate: z.string(),
-  surcharges: z.string(),
-  total: z.string(),
+  baseRate: numericText,
+  surcharges: numericText,
+  total: numericText,
   checkedInAt: z.string(),
   bookedEndAt: z.string(),
   checkedOutAt: z.string().nullable(),
