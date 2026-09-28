@@ -41,3 +41,19 @@ describe("which frontdesk paths the session guard covers", () => {
     expect(requiresSession("/organization/settings")).toBe(true);
   });
 });
+
+describe("which frontdesk paths the session guard covers — the API surface (roadmap 06)", () => {
+  it("stands aside for the tRPC endpoint, which authenticates at the procedure layer", () => {
+    expect(requiresSession("/api/trpc")).toBe(false);
+    expect(requiresSession("/api/trpc/sessions.createSession")).toBe(false);
+  });
+
+  it("stands aside for the health probe, the reachability authority", () => {
+    expect(requiresSession("/api/health")).toBe(false);
+  });
+
+  it("does not extend the API exemption to a path that merely looks like it", () => {
+    expect(requiresSession("/apiv2")).toBe(true);
+    expect(requiresSession("/apiary")).toBe(true);
+  });
+});

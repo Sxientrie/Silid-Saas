@@ -8,5 +8,5 @@ export {
   STAY_TYPES,
   WORKED_EXAMPLES,
   recomputeWorkedExample,
-} from "./money-reference.js";
-export type { BookingType } from "./money-reference.js";
+} from "./money-reference.ts";
+export type { BookingType } from "./money-reference.ts";

@@ -5,6 +5,7 @@ import { navItemsFor } from "@/lib/desk-navigation";
 import { signOut } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeskQueryProvider } from "@/components/desk-query-provider";
 
 /**
  * The desk shell (spec/applications.md §3, spec/authentication.md §3).
@@ -46,7 +47,9 @@ export default async function DeskLayout({ children }: LayoutProps<"/">) {
           </form>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-4xl flex-1 p-6">{children}</main>
+      <main className="mx-auto w-full max-w-4xl flex-1 p-6">
+        <DeskQueryProvider>{children}</DeskQueryProvider>
+      </main>
     </div>
   );
 }

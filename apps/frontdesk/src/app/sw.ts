@@ -41,11 +41,21 @@ const serwist = new Serwist({
   // @serwist/turbopack/src/index.worker.ts), so it MUST be spread last or it
   // silently shadows every rule below it.
   runtimeCaching: [
-    // The reachability probe. NetworkOnly on purpose: a cached 200 would make
-    // a dead branch look connected, which is the one lie the connectivity
-    // monitor must never tell (spec/offline-sync.md §5).
+    // Reachability probes (the harness's and the desk API's). NetworkOnly on
+    // purpose: a cached 200 would make a dead branch look connected, which is
+    // the one lie the connectivity monitor must never tell
+    // (spec/offline-sync.md §5).
     {
-      matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/harness/health"),
+      matcher: ({ url, sameOrigin }) =>
+        sameOrigin && (url.pathname.startsWith("/harness/health") || url.pathname.startsWith("/api/health")),
+      handler: new NetworkOnly(),
+    },
+    // The tRPC endpoint is transactional, never cacheable: every request must
+    // reach the server (or fail into the outbox), never a worker's memory of
+    // an earlier answer. A cached mutation response would double-apply; a
+    // cached query would pass stale figures off as live.
+    {
+      matcher: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/api/trpc"),
       handler: new NetworkOnly(),
     },
     // Immutable build output: the filename changes when the bytes change, so

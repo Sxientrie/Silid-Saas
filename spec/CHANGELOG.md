@@ -91,3 +91,10 @@ file and section, the old rule, the new rule, and the reason (per
   opened the spec had no way to learn it. §4 is unchanged and still true; this
   adds a second, cheaper enforcement surface rather than moving the first.
 
+- 2026-09-29 — Phase 06 — `spec/tech-stack.md` version-and-source table,
+  TanStack Query row — parenthetical 5.103.1 → 5.104.0 — reason:
+  re-confirmation at install time via the registry (`pnpm view
+  @tanstack/react-query version`); the live source wins under the
+  verify-before-you-trust rule. Same 5.x line; installed exactly as
+  confirmed (@trpc/client 11.19.0 re-confirmed unchanged on the pinned
+  11.x line).

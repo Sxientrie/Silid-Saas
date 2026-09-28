@@ -1,15 +1,16 @@
 import { readAppClaims } from "@silid/auth";
-import { createClient } from "@/lib/supabase/server";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DeskOutboxRows, DeskSyncBar } from "@/components/desk-sync";
+import { DeskDashboard } from "@/features/sessions/DeskDashboard";
+import { createClient } from "@/lib/supabase/server";
 
 /**
- * The desk surface (spec/applications.md §3).
- *
- * Deliberately thin: Phase 05 delivers the shell and the offline contract, and
- * no business feature exists to render here yet (roadmap 05). A screen full of
- * placeholders would be a lie about the product's state, so this says what is
- * here and names where the contract is proved.
+ * The desk surface (spec/applications.md §3): the cashier dashboard — room
+ * grid, check-in with the payment-confirmation step, check-out with the
+ * sealed total, and the overstay ladder. The queries poll at the 15-second
+ * design interval so other cashiers' sessions and rooms appear (multi-cashier
+ * is the normal case), and the offline bar carries the write contract's desk
+ * surface.
  */
 export default async function DeskPage() {
   const supabase = await createClient();
@@ -22,29 +23,24 @@ export default async function DeskPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-3">
             Desk
-            {claims ? <Badge data-testid="desk-role">{claims.role}</Badge> : null}
+            {claims ? (
+              <span data-testid="desk-role" className="text-sm font-normal text-muted-foreground">
+                {claims.role}
+              </span>
+            ) : null}
           </CardTitle>
           <CardDescription>
-            The shell is in place: this session came from <code>app_metadata</code> claims, the
-            navigation above is the role&apos;s own surface set, and every route here is behind the
-            Layer 2 guard.
+            Rooms, sessions, and the overstay ladder — every peso sealed by the server.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
-          <p>
-            Room, session, and shift features land in later phases. What is already real on every
-            desk machine is the offline layer: the service worker, the local database, the durable
-            outbox, and the online-only gate.
-          </p>
-          <p>
-            The offline contract is demonstrated at{" "}
-            <a className="underline" href="/harness">
-              /harness
-            </a>
-            , which is exempt from the guard and holds no business data.
-          </p>
+        <CardContent>
+          <DeskSyncBar />
+          <div className="mt-3">
+            <DeskOutboxRows />
+          </div>
         </CardContent>
       </Card>
+      <DeskDashboard />
     </div>
   );
 }

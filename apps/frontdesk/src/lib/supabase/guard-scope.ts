@@ -3,8 +3,7 @@
  *
  * It lives apart from `proxy.ts` for one reason: this is a decision table, and
  * a decision table that can only be exercised by standing up a server is a
- * decision table nobody tests. The proxy owns the cookie plumbing; this owns
- * the question "is this path guarded at all".
+ * decision table nobody tests.
  */
 
 /**
@@ -18,6 +17,17 @@
 export const HARNESS_PREFIX = "/harness";
 
 /**
+ * The API surface is exempt from the PAGE guard, not from authorization: the
+ * tRPC endpoint verifies the caller's token inside its own context (Layer 1,
+ * spec/multi-tenancy.md §3), and the health probe is the reachability
+ * authority with no data in it (spec/offline-sync.md §5). A page-style
+ * redirect or 403 on these fetches would corrupt the transport's failure
+ * classification — a guarded redirect is not a server refusal — so endpoints
+ * authenticate at the procedure layer and stay outside the page guard.
+ */
+export const API_PREFIX = "/api";
+
+/**
  * Both the redirect and the 403 ask this, so a path outside the guard is
  * genuinely outside it — a signed-in cashier opening the harness must not be
  * refused for holding no desk surface.
@@ -25,5 +35,6 @@ export const HARNESS_PREFIX = "/harness";
 export function requiresSession(pathname: string): boolean {
   const isSignin = pathname === "/signin" || pathname.startsWith("/signin/");
   const isHarness = pathname === HARNESS_PREFIX || pathname.startsWith(`${HARNESS_PREFIX}/`);
-  return !isSignin && !isHarness;
+  const isApi = pathname === API_PREFIX || pathname.startsWith(`${API_PREFIX}/`);
+  return !isSignin && !isHarness && !isApi;
 }
