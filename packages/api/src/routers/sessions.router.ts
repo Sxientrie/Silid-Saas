@@ -20,6 +20,24 @@ const sessionSelectorInput = z.strictObject({ sessionId: z.uuid() });
 /** The client's room is a preference; the database validates vacancy and branch scope. */
 const createSessionInput = checkInInputSchema;
 
+/**
+ * The database's transition refusals are business outcomes, not server faults:
+ * double-booking, an inactive session, a missing open shift. Mapped to a
+ * client-error code so the desk's offline contract classifies them as final
+ * (poisoned, surfaced) rather than transport (queued), and so the reason the
+ * desk shows is the database's own words (spec/offline-sync.md §4).
+ */
+function mapTransitionError(error: unknown): never {
+  if (error instanceof TRPCError) {
+    throw error;
+  }
+  throw new TRPCError({
+    code: "CONFLICT",
+    message: error instanceof Error ? error.message : "the server refused the transition",
+    cause: error,
+  });
+}
+
 export const sessionsRouter = trpc.router({
   listSessions: protectedProcedure.input(branchSelectorInput).query(async ({ ctx, input }) => {
     const decision = resolveBranchFilter(ctx.caller, input.branchId);
@@ -44,7 +62,11 @@ export const sessionsRouter = trpc.router({
     if (ctx.caller.claims.role !== "cashier") {
       throw new TRPCError({ code: "FORBIDDEN", message: "check-in is a cashier surface" });
     }
-    return ctx.data.checkInSession(ctx.caller.userId, input);
+    try {
+      return await ctx.data.checkInSession(ctx.caller.userId, input);
+    } catch (error) {
+      mapTransitionError(error);
+    }
   }),
 
   /**
@@ -53,6 +75,10 @@ export const sessionsRouter = trpc.router({
    * releases the room. The desk sends the session id and nothing else.
    */
   closeSession: protectedProcedure.input(sessionSelectorInput).mutation(async ({ ctx, input }) => {
-    return ctx.data.closeSession(input.sessionId);
+    try {
+      return await ctx.data.closeSession(input.sessionId);
+    } catch (error) {
+      mapTransitionError(error);
+    }
   }),
 });

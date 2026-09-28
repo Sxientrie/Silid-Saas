@@ -416,3 +416,33 @@ describe("session procedures (check-in / check-out contracts, roadmap 06 D1)", (
     expect(invisible).toBeNull();
   });
 });
+
+describe("session transition refusals are business outcomes, not server faults", () => {
+  it("a database rejection surfaces as CONFLICT with its own words — poisoned, not queued", async () => {
+    const data = memoryDataClient();
+    data.checkInSession = async () => {
+      throw new Error('duplicate key value violates unique constraint "one_active_session_per_room"');
+    };
+    const caller = cashierCaller(data);
+    try {
+      await caller.sessions.createSession({ roomId: ROOM_A1, bookingType: "short_time", pax: 2 });
+      throw new Error("the refused check-in unexpectedly succeeded");
+    } catch (error) {
+      expect(error).toBeInstanceOf(TRPCError);
+      expect((error as TRPCError).code).toBe("CONFLICT");
+      expect((error as TRPCError).message).toContain("one_active_session_per_room");
+    }
+  });
+
+  it("closeSession maps the RPC's refusals the same way", async () => {
+    const data = memoryDataClient();
+    data.closeSession = async () => {
+      throw new Error("session is not active");
+    };
+    const caller = cashierCaller(data);
+    await expect(caller.sessions.closeSession({ sessionId: SESSION_A1 })).rejects.toHaveProperty(
+      "code",
+      "CONFLICT",
+    );
+  });
+});
