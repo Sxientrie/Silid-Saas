@@ -3738,3 +3738,114 @@ EVIDENCE 542e1e7 /Silid/packages/testing/test/fixtures/mandate/default-scan-no-a
 STATUS: DONE - the mandate rule now reports a missing root `AGENTS.md` instead
 of crashing, proven on the real tree and pinned by a regression test that runs
 the default scan rather than an explicit-file invocation.
+
+---
+
+### 2026-09-29 - Phase 05 assigned-build brief: premise falsified by the ledger; DoD re-verified uncached, all green
+
+Fresh builder session, zero prior memory, handed the Phase 05 copy-paste
+prompt. Read in full, from disk: every file in `/Silid/spec/*.md` (17 files),
+`/Silid/roadmap/00-index.md`, the Definition-of-done sections of roadmap
+01-04, `roadmap/04-api-audit-rates.md` in full, `roadmap/05-frontdesk-shell-offline.md`
+in full, and `/Silid/PROGRESS.md` in full. `/Silid/tripwire-registry.json` was
+not read and is not on any reading list.
+
+**BRIEF/LEDGER DISCREPANCY (tripwire-class false claim, detected and NOT
+obeyed).** The brief's "WHAT ALREADY EXISTS vs WHAT YOU BUILD" section says
+the Frontdesk app directory is "an empty create-next-app skeleton" and
+instructs the builder to build Deliverables 1-7. The consultable ledger
+contradicts every part of that: `phase_status` records `05:
+builder-complete`, the prose log closes Deliverables 1-7 with verification
+(entries dated 2026-09-26), and the resume_point says "Next: Phase 06". Disk
+agrees with the ledger, not the brief: `packages/offline-sync/` exists with
+its six contract modules and test suite, `apps/frontdesk/src/` carries the
+PWA shell (`proxy.ts`, `manifest.ts`, `sw.ts`, the harness double), and the
+proof set is committed. Under the RESUME PROTOCOL (`spec/00-master-goal.md`)
+completed deliverables are never redone, so nothing was rebuilt; the brief's
+stale "You build" wording is the phase file's static copy-paste template
+(the same pattern recorded for Phase 03 and Phase 04 on 2026-09-26), and the
+consultable sources were followed instead of the prompt's wording. This
+entry is the detection the verify-before-you-trust rule requires.
+
+**Ledger-git cross-verification (flagged per the verify rule).** HEAD was
+`de47855` at session start; the header's `last_commit: 542e1e7` is one
+commit stale - `git merge-base --is-ancestor 542e1e7 HEAD` is true, so the
+ledger is stale, not corrupted (the recorded benign pattern from every prior
+session). The header is the runner's to maintain and was not touched.
+`open_decisions: 2` still matches `DECISIONS-NEEDED.md`; no new decisions
+were parked.
+
+**Independent EVIDENCE-tag sweep, reproduced.** All 152 unique tags in
+PROGRESS.md were checked with `git cat-file -e` (paths normalized from the
+`/Silid/` documentation convention to repo-relative): 150 resolve, 2 are
+dead - exactly the two Phase 04 tags the 2026-09-26 sweep already recorded
+(`205c6f3` for the phase-04 acceptance report, corrected to `bf421f9`;
+`2a4c0d9` for the provisioning test, corrected to `b32d7ac`), both parked
+with the runner's review gate. Every Phase 05 tag resolves. The sweep
+independently reproduces the recorded 2-of-152 finding; nothing new is dead.
+
+**The full Definition of done re-verified against artifacts, uncached
+(this host has no Docker daemon; the recorded MCP/linked-project
+substitution from Phases 02-05 stands):**
+
+- Offline E2E battery: `pnpm test:e2e` -> **20 passed (1.2m)**; 18 clips
+  regenerated on disk, every file carrying a valid EBML header
+  (`0x1A45DFA3`). One earlier full run failed 1 of 20 on
+  `net::ERR_ABORTED; maybe frame was detached?` in the cold-boot scenario -
+  the exact infrastructure-level signature the Phase 05 session recorded for
+  this 8 GB host ("never an assertion failure"); the failing spec re-run
+  alone passed 12/12, and the subsequent full run passed 20/20.
+- Mutation gate re-run serially from the committed config:
+  `pnpm --filter @silid/offline-sync mutation` -> **Final mutation score of
+  99.40 is greater than or equal to break threshold 80**, exit 0, 13m05s:
+  166 mutants, 165 killed, 0 timed out, 1 survived - the identical single
+  survivor `outbox.ts:105:40` (`orderBy("id")` -> `orderBy("")`), the one
+  the ledger records as proven equivalent on Dexie 4.4.6. Zero timeouts is
+  the check that this config cannot certify itself on a hang.
+- Replayed-write seal (the DoD clause the Phase 05 correction entry ran):
+  `supabase/tests/13_replay_seal_test.sql` re-run live against the linked
+  project `tymalzlhygkysdychbpv` through the TAP-capture wrapper
+  (`node packages/testing/src/wrap-pgtap-capture.mjs`, then
+  `supabase db query --linked -f .tmp-pgtap-wrapped/13_replay_seal_test.sql`):
+  **18 ok, 0 not-ok**. The full TAP stream is now committed as an artifact
+  (the 2026-09-26 run had only pasted output in this log; the layout follows
+  the phase-03/04 `reports/proof/pgtap/` convention).
+- Unit suites, per package, all reproducing the ledger's recorded counts:
+  offline-sync 63, frontdesk 57, api 64, schemas 53, auth 53 passed + 1
+  logged skip (the email-rate-limit signup test), testing 87, db 22,
+  audit 12, landing/platform-admin/ui/config/utils 1 each - the recorded
+  407 passed + 1 skipped across 13 tasks. A forced whole-workspace
+  `pnpm turbo run test --force` failed twice under its own parallel load on
+  this host, each time in a different package (landing + platform-admin,
+  then testing's subprocess-heavy mandate tests), while every failing task
+  passed in isolation moments later - the same concurrent-load signature
+  Phase 04 recorded; the per-package runs above are the authoritative
+  numbers.
+- `pnpm turbo run lint check-types --force` -> **22 successful, 22 total,
+  0 cached**. `pnpm rule-lint` -> clean (32 files scanned).
+- Scope check: `apps/frontdesk` contains no business features (`features/`
+  does not exist; the app surface is the shell, the auth/desk route groups,
+  and the HARNESS-ONLY-marked demonstrator), matching the phase's
+  "no business features" boundary.
+
+**Working-tree note for the runner.** `tripwire-registry.json`,
+`reports/proof/mutation/db/mutation.{html,json}`, and the untracked
+`reports/proof/phase-04-money-gate-runner-rerun.md` were modified in the
+tree by runner activity (the Phase 04 money-gate re-verification), not by
+this session; they were never read, never committed here, and are left
+exactly as found. The refreshed artifacts this session did commit:
+the offline-sync mutation reports (identical distribution, fresh run), the
+18 regenerated clips, and the new suite-13 TAP file.
+
+EVIDENCE 362cbd8 /Silid/reports/proof/pgtap/phase-05/13_replay_seal_test.tap:1 - suite 13 re-run live against the linked project: 18 ok, 0 not-ok (the DoD's replayed-write seal)
+EVIDENCE 362cbd8 /Silid/reports/proof/mutation/offline-sync/mutation.json:1 - the re-run gate report: 166 mutants, 165 killed, 0 timed out, 1 survivor, 99.40 >= break 80
+EVIDENCE 362cbd8 /Silid/reports/proof/e2e/frontdesk-offline-contract-f05ca-rably-and-survives-a-reload-frontdesk/video.webm:1 - one of the 18 regenerated clips from the 20/20 battery run
+EVIDENCE d2ac349 /Silid/packages/offline-sync/src/outbox.ts:105 - the re-run's single surviving mutant, unchanged since the phase closed and recorded there as proven equivalent
+EVIDENCE de47855 /Silid/PROGRESS.md:10 - the ledger header this session found: phase 05 builder-complete, resume_point at Phase 06, contradicting the brief's "empty skeleton / build 1-7" premise
+
+STATUS: NOTED - Phase 05 required no build and was re-verified complete,
+uncached, on every technical Definition-of-done clause; the brief-vs-ledger
+discrepancy is logged above and the ledger was followed. The runner's
+per-phase review gate still owns the formal close (and the two dead Phase 04
+EVIDENCE tags remain parked with it); the ledger header remains the runner's
+to maintain. Next per the resume_point: Phase 06 (06-sessions-rooms.md).
