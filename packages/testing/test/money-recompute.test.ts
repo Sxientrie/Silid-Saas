@@ -7,9 +7,12 @@ import {
   recomputeBlockCount,
   recomputeOvernightBase,
   recomputeReferenceFigures,
+  recomputeSealedSession,
+  recomputeSessionLedger,
   reconcileLedger,
   seededLedger,
   type MoneyRecomputeReport,
+  type SealedSessionRow,
 } from "../src/money-recompute.js";
 
 describe("money recomputation gate (spec/domain-rules.md §7)", () => {
@@ -125,5 +128,157 @@ describe("money recomputation gate (spec/domain-rules.md §7)", () => {
     const report = buildReport(dirty);
     expect(report).toContain("DRIFT DETECTED");
     expect(report).toContain("vault-01");
+  });
+});
+
+/**
+ * The --session-ledger section (roadmap 06 Deliverable 7). It is the gate
+ * over the desk's E2E sealed totals, so it has to be able to FAIL: the tests
+ * below prove it detects lost money, double-charged blocks, and a tampered
+ * add-on row, not just that it agrees on a clean ledger.
+ */
+describe("sealed-session recomputation (roadmap 06 Deliverable 7)", () => {
+  const GRACE_MINUTES = OVERSTAY_DEFAULTS.grace_minutes;
+  const BLOCK_CHARGE = OVERSTAY_DEFAULTS.block_charge;
+  const base = "2026-09-29T10:00:00.000Z";
+  const at = (minutesFromBase: number) => new Date(Date.parse(base) + minutesFromBase * 60_000).toISOString();
+
+  const row = (over: Partial<SealedSessionRow> = {}): SealedSessionRow => ({
+    label: "fixture session",
+    sessionId: "4a0e6dbf-1111-2222-3333-444455556666",
+    bookingType: "short_time",
+    pax: 2,
+    bookedEndAt: at(180),
+    checkedOutAt: at(180),
+    sealedTotal: 450,
+    addons: [],
+    ...over,
+  });
+
+  it("recomputes a within-grace short-time stay at the fixture's 450", () => {
+    const result = recomputeSealedSession(row());
+    expect(result.independent_php).toBe(450);
+    expect(result.blocksDue).toBe(0);
+    expect(result.postedExtensionQty).toBe(0);
+    expect(result.rowMismatch).toBeNull();
+    expect(result.blockMismatch).toBeNull();
+  });
+
+  it("charges no block while the checkout is still inside the grace window", () => {
+    const result = recomputeSealedSession(
+      row({ bookedEndAt: at(180), checkedOutAt: at(180 + GRACE_MINUTES) }),
+    );
+    expect(result.blocksDue).toBe(0);
+    expect(result.blockMismatch).toBeNull();
+  });
+
+  it("finds the lost money when the clock says two blocks but one was posted", () => {
+    const two = GRACE_MINUTES + 61;
+    const honest = recomputeSealedSession(
+      row({
+        bookingType: "overnight",
+        pax: 5,
+        bookedEndAt: at(0),
+        checkedOutAt: at(two),
+        sealedTotal: 2000 + 2 * BLOCK_CHARGE,
+        addons: [
+          { item: "extension_charge", qty: 2, unitPrice: BLOCK_CHARGE, total: 2 * BLOCK_CHARGE },
+        ],
+      }),
+    );
+    expect(honest.blocksDue).toBe(2);
+    expect(honest.independent_php).toBe(2000 + 2 * BLOCK_CHARGE);
+    expect(honest.blockMismatch).toBeNull();
+
+    const short = recomputeSealedSession(
+      row({
+        bookingType: "overnight",
+        pax: 5,
+        bookedEndAt: at(0),
+        checkedOutAt: at(two),
+        sealedTotal: 2000 + BLOCK_CHARGE,
+        addons: [{ item: "extension_charge", qty: 1, unitPrice: BLOCK_CHARGE, total: BLOCK_CHARGE }],
+      }),
+    );
+    expect(short.blockMismatch).toContain("clock says 2 block(s) due but 1 posted");
+  });
+
+  it("finds the double-charge when more blocks are posted than the clock allows", () => {
+    const result = recomputeSealedSession(
+      row({
+        checkedOutAt: at(180 + GRACE_MINUTES + 1),
+        sealedTotal: 450 + 2 * BLOCK_CHARGE,
+        addons: [
+          { item: "extension_charge", qty: 2, unitPrice: BLOCK_CHARGE, total: 2 * BLOCK_CHARGE },
+        ],
+      }),
+    );
+    expect(result.blocksDue).toBe(1);
+    expect(result.blockMismatch).toContain("clock says 1 block(s) due but 2 posted");
+  });
+
+  it("catches an add-on row whose total is not qty times its unit price", () => {
+    const result = recomputeSealedSession(
+      row({
+        sealedTotal: 450 + 300,
+        addons: [{ item: "bottled_water", qty: 2, unitPrice: 150, total: 500 }],
+      }),
+    );
+    expect(result.rowMismatch).toContain("qty 2 × unit 150 = ₱300 but row total is ₱500");
+  });
+
+  it("sums every posted add-on row into the sealed total, not just extensions", () => {
+    const result = recomputeSealedSession(
+      row({
+        sealedTotal: 450 + 150 + 300,
+        addons: [
+          { item: "bottled_water", qty: 1, unitPrice: 150, total: 150 },
+          { item: "red_horse_1l", qty: 2, unitPrice: 150, total: 300 },
+        ],
+      }),
+    );
+    expect(result.independent_php).toBe(450 + 150 + 300);
+    expect(result.postedExtensionQty).toBe(0);
+  });
+
+  it("reports zero drift and no anomalies for a clean set of sealed rows", () => {
+    const result = recomputeSessionLedger([
+      row({ label: "2-pax short-time" }),
+      row({ label: "3-pax short_time", pax: 3, sealedTotal: 650 }),
+      row({ label: "5-pax overnight", bookingType: "overnight", pax: 5, sealedTotal: 2000 }),
+    ]);
+    expect(result.driftedFigures).toEqual([]);
+    expect(result.anomalies).toEqual([]);
+    expect(result.recomputedFigures.map((f) => f.stated_php)).toEqual([450, 650, 2000]);
+  });
+
+  it("flags a single peso of drift in any row", () => {
+    const result = recomputeSessionLedger([
+      row({ label: "clean", sealedTotal: 450 }),
+      row({ label: "one peso short", sealedTotal: 449 }),
+    ]);
+    expect(result.driftedFigures).toHaveLength(1);
+    expect(result.driftedFigures[0].label).toContain("one peso short");
+    expect(result.anomalies).toEqual([]);
+  });
+
+  it("surfaces block and row anomalies with the session's own label", () => {
+    const result = recomputeSessionLedger([
+      row({
+        label: "tampered row",
+        sealedTotal: 450,
+        addons: [{ item: "extension_charge", qty: 3, unitPrice: BLOCK_CHARGE, total: 450 }],
+      }),
+    ]);
+    expect(result.anomalies.some((a) => a.startsWith("tampered row:"))).toBe(true);
+    expect(result.anomalies.join(" ")).toContain("clock says 0 block(s) due but 3 posted");
+  });
+
+  it("never lets an unparseable timestamp become NaN money", () => {
+    const result = recomputeSealedSession(
+      row({ bookedEndAt: "not-a-date", sealedTotal: 450 }),
+    );
+    expect(Number.isFinite(result.independent_php)).toBe(true);
+    expect(result.independent_php).toBe(450);
   });
 });

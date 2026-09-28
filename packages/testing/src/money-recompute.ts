@@ -13,11 +13,17 @@
  *   node packages/testing/src/money-recompute.ts --reference
  *   node packages/testing/src/money-recompute.ts --reference --out <file.md>
  *   node packages/testing/src/money-recompute.ts --ledger --seed 20260925 --events 40
+ *   node packages/testing/src/money-recompute.ts --session-ledger reports/proof/phase-06/session-ledger.json
+ *   node packages/testing/src/money-recompute.ts --service-config
+ *
+ * The four sections may be combined in one invocation. --session-ledger is
+ * the roadmap 06 addition: it recomputes the desk's E2E sealed totals from the
+ * exported ledger rows (roadmap 06 Deliverable 7).
  *
  * Exit code 0 only on zero drift; 1 otherwise.
  */
 
-import { writeFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import {
   OVERSTAY_DEFAULTS,
@@ -263,6 +269,106 @@ export function buildReport(result: MoneyRecomputeReport): string {
   return out.join("\n");
 }
 
+/**
+ * The sealed-session ledger the desk's E2E money proofs export
+ * (reports/proof/phase-06/session-ledger.json). DATA, not arithmetic: each
+ * row is a sealed session and its posted add-on rows exactly as the database
+ * holds them.
+ */
+export interface SealedSessionRow {
+  label: string;
+  sessionId: string;
+  bookingType: string;
+  pax: number;
+  bookedEndAt: string;
+  checkedOutAt: string;
+  sealedTotal: number;
+  addons: Array<{ item: string; qty: number; unitPrice: number; total: number }>;
+}
+
+/**
+ * Recompute one sealed session's total through the gate's independent paths:
+ * per-guest accumulation for base + surcharge, floor-plus-remainder block
+ * counting over (checkout − booked_end − grace), and a running row-by-row sum
+ * of every posted add-on row (each row itself re-multiplied as qty × unit
+ * price). The hunt: the posted extension quantity must EQUAL the blocks the
+ * clock says were due — fewer is lost money, more is a double-charge — and
+ * the sealed total must equal base + surcharge + every posted row.
+ */
+export function recomputeSealedSession(row: SealedSessionRow): {
+  independent_php: number;
+  blocksDue: number;
+  postedExtensionQty: number;
+  postedExtensionPhp: number;
+  rowMismatch: string | null;
+  blockMismatch: string | null;
+} {
+  const stays =
+    row.bookingType === "short_time" ? independentShortTimeTotal(row.pax) : independentOvernightTotal(row.pax);
+
+  const bookedEndMs = Date.parse(row.bookedEndAt);
+  const checkedOutMs = Date.parse(row.checkedOutAt);
+  const overdueMs = checkedOutMs - (bookedEndMs + OVERSTAY_DEFAULTS.grace_minutes * 60_000);
+  const overdueMinutes = overdueMs > 0 ? overdueMs / 60_000 : 0;
+  const blocksDue = recomputeBlockCount(overdueMinutes);
+
+  let postedExtensionQty = 0;
+  let postedExtensionPhp = 0;
+  let addonSum = 0;
+  let rowMismatch: string | null = null;
+  for (const addon of row.addons) {
+    const expectedRowTotal = addon.qty * addon.unitPrice;
+    if (expectedRowTotal !== addon.total) {
+      rowMismatch = `addon ${addon.item}: qty ${addon.qty} × unit ${addon.unitPrice} = ₱${expectedRowTotal} but row total is ₱${addon.total}`;
+    }
+    addonSum += addon.total;
+    if (addon.item === "extension_charge") {
+      postedExtensionQty += addon.qty;
+      postedExtensionPhp += addon.total;
+    }
+  }
+  const blockMismatch =
+    blocksDue === postedExtensionQty
+      ? null
+      : `clock says ${blocksDue} block(s) due but ${postedExtensionQty} posted (${postedExtensionPhp} pesos)`;
+  const total = stays.total + addonSum;
+  return {
+    independent_php: total,
+    blocksDue,
+    postedExtensionQty,
+    postedExtensionPhp,
+    rowMismatch,
+    blockMismatch,
+  };
+}
+
+/** The --session-ledger gate section: recompute every sealed total and diff. */
+export function recomputeSessionLedger(rows: SealedSessionRow[]): MoneyRecomputeResult & { anomalies: string[] } {
+  const lines: RecomputedFigure[] = [];
+  const anomalies: string[] = [];
+  for (const row of rows) {
+    const { independent_php, blockMismatch, rowMismatch } = recomputeSealedSession(row);
+    if (rowMismatch !== null) anomalies.push(`${row.label}: ${rowMismatch}`);
+    if (blockMismatch !== null) anomalies.push(`${row.label}: ${blockMismatch}`);
+    lines.push({
+      source: "reports/proof/phase-06/session-ledger.json",
+      label: `${row.label} (session ${row.sessionId.slice(0, 8)})`,
+      independent_php,
+      stated_php: row.sealedTotal,
+    });
+  }
+  const drifted = lines.filter((line) => line.independent_php !== line.stated_php);
+  return { recomputedFigures: lines, driftedFigures: drifted, blockChargePhp: OVERSTAY_DEFAULTS.block_charge, anomalies };
+}
+
+function loadSessionLedger(path: string): SealedSessionRow[] {
+  const parsed = JSON.parse(readFileSync(path, "utf8")) as { runs?: SealedSessionRow[] };
+  if (!Array.isArray(parsed.runs)) {
+    throw new Error(`session ledger ${path} carries no "runs" array`);
+  }
+  return parsed.runs;
+}
+
 function main(argv: string[]): number {
   const has = (flag: string) => argv.includes(flag);
   const value = (flag: string) => {
@@ -270,9 +376,9 @@ function main(argv: string[]): number {
     return index >= 0 ? argv[index + 1] : undefined;
   };
 
-  if (!has("--reference") && !has("--ledger") && !has("--service-config")) {
+  if (!has("--reference") && !has("--ledger") && !has("--service-config") && !has("--session-ledger")) {
     console.error(
-      "money-recompute: nothing to do. Pass --reference (worked examples + vault goldens), --ledger, and/or --service-config (the rate-configuration service's accepted behavior).",
+      "money-recompute: nothing to do. Pass --reference (worked examples + vault goldens), --ledger, --session-ledger <file> (the E2E sealed sessions), and/or --service-config (the rate-configuration service's accepted behavior).",
     );
     return 2;
   }
@@ -280,7 +386,7 @@ function main(argv: string[]): number {
   const sections: string[] = [];
   let zeroDrift = true;
 
-  if (has("--reference") || has("--ledger")) {
+  if (has("--reference") || has("--ledger") || has("--session-ledger")) {
     const lines: RecomputedFigure[] = [];
 
     if (has("--reference")) {
@@ -300,6 +406,20 @@ function main(argv: string[]): number {
       });
       for (const anomaly of ledger.anomalies) {
         console.error(`money-recompute: anomaly ${anomaly.id}: ${anomaly.reason}`);
+      }
+    }
+
+    if (has("--session-ledger")) {
+      const path = value("--session-ledger");
+      if (!path) {
+        console.error("money-recompute: --session-ledger needs a file path");
+        return 2;
+      }
+      const result = recomputeSessionLedger(loadSessionLedger(path));
+      lines.push(...result.recomputedFigures);
+      for (const anomaly of result.anomalies) {
+        console.error(`money-recompute: anomaly ${anomaly}`);
+        zeroDrift = false;
       }
     }
 

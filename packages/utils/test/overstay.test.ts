@@ -171,6 +171,7 @@ describe("garbage inputs fall back to the booked-phase zeros, never NaN (spec/do
     });
     expect(reading(GRACE + 90, { blockCharge: 0 }).accruingPhp).toBe(0);
     expect(reading(GRACE + 90, { blockCharge: Number.NaN }).accruingPhp).toBe(0);
+    expect(reading(GRACE + 90, { blockCharge: Number.POSITIVE_INFINITY }).accruingPhp).toBe(0);
     expect(reading(GRACE + 90, { blockMinutes: Number.NaN }).blocksAccrued).toBe(0);
   });
 });
