@@ -8,11 +8,16 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mutation": "stryker run"
   },
   "devDependencies": {
     "@silid/config": "workspace:*",
+    "@stryker-mutator/core": "10.0.0",
     "eslint": "10.9.1",
     "vitest": "5.0.1"
+  },
+  "dependencies": {
+    "@silid/db": "workspace:*"
   }
 }
