@@ -41,14 +41,14 @@ returns boolean language sql stable security invoker set search_path = '' as $$
       or (app.is_cashier() and app.claim_org_id() = row_org_id and app.claim_branch_id() = row_branch_id);
 $$;
 create or replace function app.lock_branch(row_branch_id uuid)
-returns void language sql security invoker set search_path = '' as $$
+returns void language plpgsql security invoker set search_path = '' as $$
 begin
   perform 1 from public.branches where id = row_branch_id for update;
 end;
 $$;
 
 create or replace function app.require_open_shift(row_branch_id uuid)
-returns void language sql security invoker set search_path = '' as $$
+returns void language plpgsql security invoker set search_path = '' as $$
 begin
   if not exists (
     select 1 from public.shifts where branch_id = row_branch_id and status = 'open'
@@ -58,7 +58,7 @@ begin
 end;
 $$;
 create or replace function app.stay_duration_minutes(row_branch_id uuid, booking_type text)
-returns integer language sql stable security invoker set search_path = '' as $$
+returns integer language plpgsql stable security invoker set search_path = '' as $$
 declare cfg jsonb; fallback integer;
 begin
   fallback := case when booking_type = 'short_time' then 180 else 720 end;
