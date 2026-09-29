@@ -63,11 +63,23 @@ enabled = true
 schema_paths = []
 
 [db.seed]
-# If enabled, seeds the database after migrations during a db reset.
-enabled = true
+# DISABLED deliberately, 2026-09-29: sql_paths pointed at ./seed.sql, which
+# does not and should not exist. Nothing in the repo generates it and no
+# script writes it, so a fresh checkout (a new machine, or the CI runner)
+# had a config referencing a missing file and `supabase start` /
+# `supabase db reset` failed at the seed step - which is the
+# rls-policy-tests job's "Start the local Supabase stack" failure, red on
+# every run since at least 2026-09-25.
+#
+# No seed file is needed: the money fixture's rate card is a COLUMN DEFAULT
+# in migration 20260924141037_database_core.sql (rate_config jsonb not null
+# default '{...}'), not a seeded row, and packages/db/src/money-reference.ts
+# is the TS mirror of that same default. There is no other master data to
+# load. Re-enable this only alongside an actual tracked seed file.
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: "./seeds/*.sql"
-sql_paths = ["./seed.sql"]
+sql_paths = []
 
 [db.network_restrictions]
 # Enable management of network restrictions.
