@@ -1,43 +1,43 @@
 {
-  "generatedAt": "2026-09-28T19:12:59.414Z",
+  "generatedAt": "2026-09-29T00:26:25.283Z",
   "runs": [
     {
       "label": "2-pax short-time within grace",
-      "sessionId": "4a0e6dbf-fe9f-496b-a98e-66deaf190606",
+      "sessionId": "b5dd736e-57a6-4490-a248-978b7d080ef6",
       "bookingType": "short_time",
       "pax": 2,
-      "bookedEndAt": "2026-09-28T22:12:11.960726+00:00",
-      "checkedOutAt": "2026-09-28T19:12:12.771377+00:00",
+      "bookedEndAt": "2026-09-29T03:25:27.911275+00:00",
+      "checkedOutAt": "2026-09-29T00:25:30.650726+00:00",
       "sealedTotal": 450,
       "addons": []
     },
     {
       "label": "3-pax short_time",
-      "sessionId": "20ab15a0-2b85-4672-aad3-7ef50d93ec47",
+      "sessionId": "b3b55ff0-f9ec-4a45-841c-b26e69695e69",
       "bookingType": "short_time",
       "pax": 3,
-      "bookedEndAt": "2026-09-28T22:12:16.118698+00:00",
-      "checkedOutAt": "2026-09-28T19:12:16.847632+00:00",
+      "bookedEndAt": "2026-09-29T03:25:38.560929+00:00",
+      "checkedOutAt": "2026-09-29T00:25:39.608824+00:00",
       "sealedTotal": 650,
       "addons": []
     },
     {
       "label": "5-pax overnight",
-      "sessionId": "69332e93-5674-4120-aec5-0f92c1f2e82e",
+      "sessionId": "54e53a2a-78f1-441c-b79b-1a9a76555e23",
       "bookingType": "overnight",
       "pax": 5,
-      "bookedEndAt": "2026-09-29T07:12:17.959508+00:00",
-      "checkedOutAt": "2026-09-28T19:12:19.068395+00:00",
+      "bookedEndAt": "2026-09-29T12:25:43.901694+00:00",
+      "checkedOutAt": "2026-09-29T00:25:45.807192+00:00",
       "sealedTotal": 2000,
       "addons": []
     },
     {
       "label": "5-pax overnight 61min past grace",
-      "sessionId": "b8abeff4-490f-41d9-ad14-3304d104543d",
+      "sessionId": "d0e36dfc-9590-4f35-ab6a-3d13f2f83ff8",
       "bookingType": "overnight",
       "pax": 5,
-      "bookedEndAt": "2026-09-28T17:46:23.381+00:00",
-      "checkedOutAt": "2026-09-28T19:12:42.607256+00:00",
+      "bookedEndAt": "2026-09-28T22:59:51.073+00:00",
+      "checkedOutAt": "2026-09-29T00:26:06.693282+00:00",
       "sealedTotal": 2300,
       "addons": [
         {
