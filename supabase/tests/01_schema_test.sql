@@ -113,6 +113,25 @@ select 'rls_auto_enable not executable by authenticated (or absent on a clean st
        or not has_function_privilege('authenticated',
              'public.rls_auto_enable()', 'EXECUTE');
 
+-- TAP emission. The assertions above are plain catalog checks accumulated
+-- into _r; the DO block below turns any failure into a hard non-zero exit.
+-- That alone is not enough for `supabase db test`: pg_prove parses TAP, and a
+-- suite that prints no plan is reported as "No plan found in TAP output" and
+-- fails the whole run even when every assertion passed. So the plan and the
+-- numbered result lines are emitted here in plain SQL - deliberately NOT via
+-- pgTAP's ok()/is()/plan() helpers, per the note at the top of this file
+-- about helper signatures being unstable across pgTAP builds under literal
+-- args. The DO block stays after the TAP lines so a failure surfaces both as
+-- a `not ok` line and as a non-zero exit.
+select '1..' || count(*) from _r;
+
+select
+  (case when ok then 'ok ' else 'not ok ' end)
+  || (row_number() over (order by name))::text
+  || ' - ' || name
+from _r
+order by name;
+
 do $$
 begin
   if exists (select 1 from _r where not ok) then
