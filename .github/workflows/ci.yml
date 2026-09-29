@@ -16,7 +16,41 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # Job-level, not step-level, and this ordering matters. Next.js inlines
+    # NEXT_PUBLIC_* at BUILD time, so these must be present for the Build step
+    # as well as for the E2E step - setting them only on the test step would
+    # bake an undefined into the client bundle and fail at runtime instead.
+    #
+    # These are the PUBLIC Supabase values (project URL and publishable key),
+    # read from GitHub Actions repository *variables* rather than secrets:
+    # they ship in the browser bundle by design, so hiding them in the secrets
+    # store would be theatre. No service_role or secret key belongs here - the
+    # live suites skip cleanly without one, which is the intended behaviour.
+    #
+    # Set these in the repo: Settings -> Secrets and variables -> Actions ->
+    # Variables -> New repository variable. The preflight step below fails with
+    # a readable message if they are missing, instead of surfacing as an
+    # unrelated-looking E2E assertion failure.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
+      - name: Preflight - public Supabase env present
+        run: |
+          missing=""
+          [ -n "$NEXT_PUBLIC_SUPABASE_URL" ] || missing="$missing NEXT_PUBLIC_SUPABASE_URL"
+          [ -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ] || missing="$missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository variable(s):$missing"
+            echo "The Frontdesk sign-in page builds a Supabase client that throws"
+            echo "when NEXT_PUBLIC_SUPABASE_URL is unset, so the /signin smoke test"
+            echo "cannot pass without them. Add them under Settings -> Secrets and"
+            echo "variables -> Actions -> Variables. They are the PUBLIC values; the"
+            echo "project URL and the sb_publishable_ key, never a secret key."
+            exit 1
+          fi
+          echo "public Supabase env present"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # the rule linter resolves EVIDENCE tags against git history (git cat-file); a shallow checkout breaks every historical tag
